@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}New Tenant — NetSuite-ISP{% endblock %}
+{% block page_title %}Onboard New ISP{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+<div class="col-lg-7">
+
+<a href="{% url 'tenants:list' %}" class="text-muted small d-inline-flex align-items-center mb-3">
+  <i class="bi bi-arrow-left me-1"></i> Back to tenants
+</a>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-bottom py-3">
+    <h5 class="mb-0"><i class="bi bi-building-add me-2 text-primary"></i>New ISP Tenant</h5>
+    <small class="text-muted">
+      Creates a Postgres schema, subdomain, and first admin user in one step.
+    </small>
+  </div>
+
+  <div class="card-body">
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    <!-- ── ISP Details ───────────────────────────────────────────── -->
+    <h6 class="text-uppercase text-muted small fw-bold mb-3 mt-1">ISP Details</h6>
+
+    <div class="mb-3">
+      <label for="id_name" class="form-label">ISP Name <span class="text-danger">*</span></label>
+      <input type="text" name="name" id="id_name"
+             value="{{ form.name.value|default:'' }}"
+             class="form-control {% if form.name.errors %}is-invalid{% endif %}"
+             placeholder="Acme Internet Ltd" required>
+      {% for e in form.name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+    </div>
+
+    <div class="mb-3">
+      <label for="id_schema_name" class="form-label">
+        Schema / Subdomain <span class="text-danger">*</span>
+      </label>
+      <div class="input-group">
+        <input type="text" name="schema_name" id="id_schema_name"
+               value="{{ form.schema_name.value|default:'' }}"
+               class="form-control {% if form.schema_name.errors %}is-invalid{% endif %}"
+               placeholder="acme_internet"
+               pattern="[a-z][a-z0-9_]{2,62}"
+               required>
+        <span class="input-group-text text-muted">.localhost</span>
+        {% for e in form.schema_name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="form-text">{{ form.schema_name.help_text }}</div>
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-sm-7">
+        <label for="id_contact_email" class="form-label">Contact Email <span class="text-danger">*</span></label>
+        <input type="email" name="contact_email" id="id_contact_email"
+               value="{{ form.contact_email.value|default:'' }}"
+               class="form-control {% if form.contact_email.errors %}is-invalid{% endif %}"
+               required>
+        {% for e in form.contact_email.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="col-sm-5">
+        <label for="id_contact_phone" class="form-label">Phone</label>
+        <input type="text" name="contact_phone" id="id_contact_phone"
+               value="{{ form.contact_phone.value|default:'' }}"
+               class="form-control {% if form.contact_phone.errors %}is-invalid{% endif %}"
+               placeholder="+254 700 000 000">
+      </div>
+    </div>
+
+    <hr>
+
+    <!-- ── First Admin User ──────────────────────────────────────── -->
+    <h6 class="text-uppercase text-muted small fw-bold mb-3">First ISP Admin User</h6>
+
+    <div class="mb-3">
+      <label for="id_admin_full_name" class="form-label">Full Name <span class="text-danger">*</span></label>
+      <input type="text" name="admin_full_name" id="id_admin_full_name"
+             value="{{ form.admin_full_name.value|default:'' }}"
+             class="form-control {% if form.admin_full_name.errors %}is-invalid{% endif %}"
+             required>
+      {% for e in form.admin_full_name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+    </div>
+
+    <div class="mb-3">
+      <label for="id_admin_email" class="form-label">Admin Email <span class="text-danger">*</span></label>
+      <input type="email" name="admin_email" id="id_admin_email"
+             value="{{ form.admin_email.value|default:'' }}"
+             class="form-control {% if form.admin_email.errors %}is-invalid{% endif %}"
+             required>
+      {% for e in form.admin_email.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-sm-6">
+        <label for="id_admin_password" class="form-label">Password <span class="text-danger">*</span></label>
+        <input type="password" name="admin_password" id="id_admin_password"
+               class="form-control {% if form.admin_password.errors %}is-invalid{% endif %}"
+               minlength="8" required>
+        {% for e in form.admin_password.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="col-sm-6">
+        <label for="id_admin_password_confirm" class="form-label">Confirm Password <span class="text-danger">*</span></label>
+        <input type="password" name="admin_password_confirm" id="id_admin_password_confirm"
+               class="form-control {% if form.admin_password_confirm.errors %}is-invalid{% endif %}"
+               required>
+        {% for e in form.admin_password_confirm.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary px-4">
+        <i class="bi bi-check-lg me-1"></i>Create Tenant
+      </button>
+      <a href="{% url 'tenants:list' %}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+
+  </form>
+  </div><!-- /card-body -->
+</div><!-- /card -->
+
+</div>
+</div>
+
+{% endblock %}

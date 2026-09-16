@@ -1,0 +1,9 @@
+{% if tenant.is_active %}
+  <span class="badge bg-success-subtle text-success" id="status-badge">
+    <i class="bi bi-circle-fill me-1" style="font-size:.55rem;"></i>Active
+  </span>
+{% else %}
+  <span class="badge bg-danger-subtle text-danger" id="status-badge">
+    <i class="bi bi-circle-fill me-1" style="font-size:.55rem;"></i>Inactive
+  </span>
+{% endif %}

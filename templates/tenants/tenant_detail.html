@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tenant.name }} — NetSuite-ISP{% endblock %}
+{% block page_title %}{{ tenant.name }}{% endblock %}
+
+{% block content %}
+
+<a href="{% url 'tenants:list' %}" class="text-muted small d-inline-flex align-items-center mb-3">
+  <i class="bi bi-arrow-left me-1"></i> Back to tenants
+</a>
+
+<div class="row g-4">
+
+  <!-- ── Left: info + edit ─────────────────────────────────────────────── -->
+  <div class="col-lg-7">
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white d-flex align-items-center justify-content-between py-3">
+        <h5 class="mb-0"><i class="bi bi-building me-2"></i>{{ tenant.name }}</h5>
+        <!-- HTMX toggle active/inactive -->
+        <form method="post"
+              action="{% url 'tenants:toggle' tenant.schema_name %}"
+              hx-post="{% url 'tenants:toggle' tenant.schema_name %}"
+              hx-target="#status-badge"
+              hx-swap="outerHTML">
+          {% csrf_token %}
+          <button type="submit"
+                  class="btn btn-sm {% if tenant.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+            {% if tenant.is_active %}
+              <i class="bi bi-pause-circle me-1"></i>Deactivate
+            {% else %}
+              <i class="bi bi-play-circle me-1"></i>Activate
+            {% endif %}
+          </button>
+        </form>
+      </div>
+
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4 text-muted">Schema</dt>
+          <dd class="col-sm-8"><code>{{ tenant.schema_name }}</code></dd>
+
+          <dt class="col-sm-4 text-muted">Status</dt>
+          <dd class="col-sm-8" id="status-badge">
+            {% include "tenants/_status_badge.html" %}
+          </dd>
+
+          <dt class="col-sm-4 text-muted">Contact Email</dt>
+          <dd class="col-sm-8">{{ tenant.contact_email }}</dd>
+
+          <dt class="col-sm-4 text-muted">Contact Phone</dt>
+          <dd class="col-sm-8">{{ tenant.contact_phone|default:"—" }}</dd>
+
+          <dt class="col-sm-4 text-muted">Created</dt>
+          <dd class="col-sm-8">{{ tenant.created_at|date:"d M Y H:i" }}</dd>
+
+          <dt class="col-sm-4 text-muted">Updated</dt>
+          <dd class="col-sm-8">{{ tenant.updated_at|date:"d M Y H:i" }}</dd>
+        </dl>
+      </div>
+    </div>
+
+    <!-- Edit form -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0"><i class="bi bi-pencil me-2"></i>Edit Details</h6>
+      </div>
+      <div class="card-body">
+        <form method="post" action="{% url 'tenants:edit' tenant.schema_name %}" novalidate>
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label">ISP Name</label>
+            {{ edit_form.name }}
+            {% for e in edit_form.name.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Contact Email</label>
+            {{ edit_form.contact_email }}
+            {% for e in edit_form.contact_email.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Contact Phone</label>
+            {{ edit_form.contact_phone }}
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-floppy me-1"></i>Save Changes
+          </button>
+        </form>
+      </div>
+    </div>
+
+  </div><!-- /col -->
+
+  <!-- ── Right: domains ────────────────────────────────────────────────── -->
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0"><i class="bi bi-globe me-2"></i>Domains</h6>
+      </div>
+      <ul class="list-group list-group-flush">
+        {% for domain in domains %}
+        <li class="list-group-item d-flex align-items-center justify-content-between">
+          <span>
+            <code>{{ domain.domain }}</code>
+            {% if domain.is_primary %}
+              <span class="badge bg-primary-subtle text-primary ms-1">primary</span>
+            {% endif %}
+          </span>
+        </li>
+        {% empty %}
+        <li class="list-group-item text-muted">No domains configured.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+</div><!-- /row -->
+
+{% endblock %}

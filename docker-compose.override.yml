@@ -1,0 +1,12 @@
+version: "3.9"
+
+# Dev override — auto-merged by `docker compose up`
+
+services:
+  django:
+    command: "sh -c 'python manage.py migrate --noinput && python manage.py create_public_tenant && python manage.py runserver 0.0.0.0:8000'"
+    environment:
+      DJANGO_DEBUG: "True"
+
+  portal:
+    command: "uvicorn captive_portal.main:app --host 0.0.0.0 --port 8001 --reload"

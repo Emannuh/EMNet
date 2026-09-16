@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — NetSuite-ISP{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block content %}
+<div class="alert alert-info">
+  Welcome, <strong>{{ user.full_name|default:user.email }}</strong>.
+  Select a section from the sidebar to get started.
+</div>
+{% endblock %}

@@ -11,7 +11,7 @@ CREATE EXTENSION IF NOT EXISTS timescaledb;
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'radius') THEN
-    CREATE ROLE radius WITH LOGIN PASSWORD 'change-me';
+    CREATE ROLE radius WITH LOGIN PASSWORD 'devpassword';
   END IF;
 END
 $$;

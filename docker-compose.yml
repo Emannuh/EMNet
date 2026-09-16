@@ -48,7 +48,7 @@ services:
       timeout: 3s
       retries: 5
 
-  # ── Django (control plane + ISP dashboard) ────────────────────────────────
+  # ── Django (runs migrations, then serves) ────────────────────────────────
   django:
     build:
       context: .
@@ -92,8 +92,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      django:
+        condition: service_started
 
   # ── Celery Beat (scheduler) ───────────────────────────────────────────────
+  # Depends on django so migrations run before beat queries the DB
   celery_beat:
     build:
       context: .
@@ -101,7 +104,7 @@ services:
     container_name: netsuite_beat
     restart: unless-stopped
     <<: *django-env
-    command: celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    command: "sh -c 'sh /app/scripts/wait_for_migrations.sh && celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler'"
     volumes:
       - .:/app
     depends_on:
@@ -109,6 +112,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      django:
+        condition: service_started
 
   # ── FastAPI captive portal service ────────────────────────────────────────
   portal:
@@ -136,6 +141,8 @@ services:
       dockerfile: Dockerfile
     container_name: netsuite_radius
     restart: unless-stopped
+    profiles:
+      - radius          # opt-in: docker compose --profile radius up
     environment:
       RADIUS_DB_HOST: db
       RADIUS_DB_PORT: ${RADIUS_DB_PORT:-5432}
@@ -143,13 +150,14 @@ services:
       RADIUS_DB_USER: ${RADIUS_DB_USER:-radius}
       RADIUS_DB_PASSWORD: ${RADIUS_DB_PASSWORD}
     ports:
-      - "1812:1812/udp"   # Authentication
-      - "1813:1813/udp"   # Accounting
+      - "1812:1812/udp"
+      - "1813:1813/udp"
     depends_on:
       db:
         condition: service_healthy
 
   # ── Nginx reverse proxy ───────────────────────────────────────────────────
+  # Port 80 is reserved on Windows — using 8080 instead
   nginx:
     image: nginx:1.27-alpine
     container_name: netsuite_nginx
@@ -159,7 +167,7 @@ services:
       - static_volume:/app/staticfiles:ro
       - media_volume:/app/mediafiles:ro
     ports:
-      - "80:80"
+      - "8080:80"
     depends_on:
       - django
       - portal
