@@ -19,6 +19,12 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env("DJANGO_DEBUG")
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
+# CSRF trusted origins — must include every scheme+host the browser posts from
+CSRF_TRUSTED_ORIGINS = env.list(
+    "CSRF_TRUSTED_ORIGINS",
+    default=["http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:8000"],
+)
+
 # ── django-tenants ────────────────────────────────────────────────────────────
 # Must be first in INSTALLED_APPS
 SHARED_APPS = [

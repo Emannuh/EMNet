@@ -1,8 +1,11 @@
 from django.urls import path
-from django.views.generic import TemplateView
+from . import views
 
 app_name = "network"
 
 urlpatterns = [
-    path("", TemplateView.as_view(template_name="network/index.html"), name="index"),
+    path("", views.DeviceListView.as_view(), name="index"),
+    path("devices/add/", views.DeviceCreateView.as_view(), name="device_add"),
+    path("devices/<int:pk>/edit/", views.DeviceUpdateView.as_view(), name="device_edit"),
+    path("devices/<int:pk>/delete/", views.DeviceDeleteView.as_view(), name="device_delete"),
 ]
