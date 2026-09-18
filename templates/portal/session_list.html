@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}WiFi Sessions — Emmsuite ISP{% endblock %}
+{% block title %}WiFi Sessions — {% if request.tenant.schema_name != 'public' %}{{ request.tenant.name }}{% else %}Emmsuite ISP{% endif %}{% endblock %}
 {% block page_title %}WiFi Sessions{% endblock %}
 
 {% block content %}

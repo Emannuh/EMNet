@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Portal Admin — Emmsuite ISP{% endblock %}
+{% block title %}Portal Admin — {% if request.tenant.schema_name != 'public' %}{{ request.tenant.name }}{% else %}Emmsuite ISP{% endif %}{% endblock %}
 {% block page_title %}Captive Portal Admin{% endblock %}
 
 {% block content %}

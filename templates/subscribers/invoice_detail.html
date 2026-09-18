@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Invoice — Emmsuite ISP{% endblock %}
+{% block title %}Invoice — {% if request.tenant.schema_name != 'public' %}{{ request.tenant.name }}{% else %}Emmsuite ISP{% endif %}{% endblock %}
 {% block page_title %}Invoice Detail{% endblock %}
 
 {% block content %}

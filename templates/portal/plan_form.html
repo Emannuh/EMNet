@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{% if object %}Edit Plan{% else %}New Plan{% endif %} — Emmsuite ISP{% endblock %}
+{% block title %}{% if object %}Edit Plan{% else %}New Plan{% endif %} — {% if request.tenant.schema_name != 'public' %}{{ request.tenant.name }}{% else %}Emmsuite ISP{% endif %}{% endblock %}
 {% block page_title %}{% if object %}Edit Plan{% else %}New Voucher Plan{% endif %}{% endblock %}
 
 {% block content %}
