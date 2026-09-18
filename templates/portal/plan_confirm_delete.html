@@ -1,24 +1,22 @@
 {% extends "base.html" %}
-{% block title %}Delete Device — Emmsuite ISP{% endblock %}
-{% block page_title %}Delete Device{% endblock %}
+{% block title %}Delete Plan — Emmsuite ISP{% endblock %}
+{% block page_title %}Delete Plan{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
 <div class="col-lg-5">
-  <div class="card border-0 shadow-sm border-danger">
+  <div class="card border-0 shadow-sm">
     <div class="card-body text-center py-5">
       <i class="bi bi-exclamation-triangle-fill text-danger fs-1 mb-3 d-block"></i>
       <h5>Delete "{{ object.name }}"?</h5>
-      <p class="text-muted mb-4">
-        This will permanently delete the device and all its uptime events and
-        bandwidth snapshots. This action cannot be undone.
-      </p>
+      <p class="text-muted mb-1">This plan has <strong>{{ object.vouchers.count }}</strong> voucher(s) attached.</p>
+      <p class="text-muted mb-4">Deleting a plan with active vouchers is blocked. Archive it (set inactive) instead.</p>
       <form method="post">
         {% csrf_token %}
         <button type="submit" class="btn btn-danger px-4 me-2">
           <i class="bi bi-trash me-1"></i>Yes, Delete
         </button>
-        <a href="{% url 'network:index' %}" class="btn btn-outline-secondary">Cancel</a>
+        <a href="{% url 'portal:index' %}" class="btn btn-outline-secondary">Cancel</a>
       </form>
     </div>
   </div>

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{% if object %}Edit IP Pool{% else %}New IP Pool{% endif %} — Emmsuite ISP{% endblock %}
+{% block page_title %}{% if object %}Edit IP Pool{% else %}New IP Pool{% endif %}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-6">
+  <a href="{% url 'subscribers:ippool_list' %}" class="text-muted small d-inline-flex align-items-center mb-3">
+    <i class="bi bi-arrow-left me-1"></i> Back to IP pools
+  </a>
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3">
+      <h5 class="mb-0">
+        <i class="bi bi-diagram-2 me-2 text-primary"></i>
+        {% if object %}Edit "{{ object.name }}"{% else %}New IP Pool{% endif %}
+      </h5>
+    </div>
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label">Pool Name <span class="text-danger">*</span></label>
+          <input type="text" name="name" value="{{ form.name.value|default:'' }}"
+                 class="form-control" placeholder="Residential Block A" required>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-sm-6">
+            <label class="form-label">Network CIDR <span class="text-danger">*</span></label>
+            <input type="text" name="network" value="{{ form.network.value|default:'' }}"
+                   class="form-control" placeholder="192.168.10.0/24" required>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Gateway <span class="text-danger">*</span></label>
+            <input type="text" name="gateway" value="{{ form.gateway.value|default:'' }}"
+                   class="form-control" placeholder="192.168.10.1" required>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Primary DNS</label>
+            <input type="text" name="dns_primary" value="{{ form.dns_primary.value|default:'8.8.8.8' }}"
+                   class="form-control">
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Secondary DNS</label>
+            <input type="text" name="dns_secondary" value="{{ form.dns_secondary.value|default:'8.8.4.4' }}"
+                   class="form-control">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Description</label>
+          <textarea name="description" rows="2" class="form-control">{{ form.description.value|default:'' }}</textarea>
+        </div>
+        <div class="mb-4 form-check">
+          <input type="checkbox" name="is_active" id="id_is_active" class="form-check-input"
+                 {% if form.is_active.value != False %}checked{% endif %}>
+          <label class="form-check-label" for="id_is_active">Active</label>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-floppy me-1"></i>Save Pool
+          </button>
+          <a href="{% url 'subscribers:ippool_list' %}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+</div>
+{% endblock %}

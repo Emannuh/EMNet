@@ -1,6 +1,143 @@
 {% extends "base.html" %}
-{% block title %}Billing — NetSuite-ISP{% endblock %}
-{% block page_title %}Billing{% endblock %}
+{% block title %}Billing — Emmsuite ISP{% endblock %}
+{% block page_title %}Billing & Payments{% endblock %}
+
 {% block content %}
-<div class="alert alert-secondary">Billing — coming in Task 5.</div>
+
+<!-- ── Stats cards ────────────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-sm-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body py-3">
+        <div class="text-muted small">Total Revenue</div>
+        <div class="fs-4 fw-bold text-success">KES {{ total_revenue|floatformat:2 }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-sm-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body py-3">
+        <div class="text-muted small">Completed</div>
+        <div class="fs-3 fw-bold text-success">{{ completed_count }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-sm-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body py-3">
+        <div class="text-muted small">Pending</div>
+        <div class="fs-3 fw-bold text-warning">{{ pending_count }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-sm-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body py-3">
+        <div class="text-muted small">Failed</div>
+        <div class="fs-3 fw-bold text-danger">{{ failed_count }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Filters ────────────────────────────────────────────────────────────── -->
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <form method="get" class="d-flex gap-2 flex-wrap">
+    <input type="search" name="q" value="{{ q }}"
+           class="form-control form-control-sm" style="max-width:240px;"
+           placeholder="Phone or M-Pesa receipt…">
+    <select name="status" class="form-select form-select-sm" style="max-width:160px;">
+      <option value="">All statuses</option>
+      {% for val, label in status_choices %}
+        <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-sm btn-outline-secondary">Filter</button>
+    {% if q or status_filter %}
+      <a href="{% url 'billing:index' %}" class="btn btn-sm btn-outline-danger">Clear</a>
+    {% endif %}
+  </form>
+</div>
+
+<!-- ── Payments table ─────────────────────────────────────────────────────── -->
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Reference</th>
+          <th>Phone</th>
+          <th>Amount (KES)</th>
+          <th>M-Pesa Receipt</th>
+          <th>Status</th>
+          <th>Date</th>
+          <th>Voucher</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for payment in payments %}
+        <tr>
+          <td><code class="small">{{ payment.reference }}</code></td>
+          <td>{{ payment.phone_number }}</td>
+          <td class="fw-semibold">{{ payment.amount_kes }}</td>
+          <td>
+            {% if payment.mpesa_receipt_number %}
+              <code>{{ payment.mpesa_receipt_number }}</code>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if payment.status == "completed" %}
+              <span class="badge bg-success-subtle text-success">Completed</span>
+            {% elif payment.status == "pending" %}
+              <span class="badge bg-warning-subtle text-warning">Pending</span>
+            {% elif payment.status == "failed" %}
+              <span class="badge bg-danger-subtle text-danger"
+                    title="{{ payment.failure_reason }}">Failed</span>
+            {% else %}
+              <span class="badge bg-secondary-subtle text-secondary">Cancelled</span>
+            {% endif %}
+          </td>
+          <td class="text-muted small">{{ payment.created_at|date:"d M Y H:i" }}</td>
+          <td class="text-muted small">
+            {% if payment.voucher_id %}
+              <span class="badge bg-primary-subtle text-primary">#{{ payment.voucher_id }}</span>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-5">
+            <i class="bi bi-credit-card fs-2 d-block mb-2 opacity-25"></i>
+            No payments recorded yet.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Pagination ─────────────────────────────────────────────────────────── -->
+{% if is_paginated %}
+<nav class="mt-3">
+  <ul class="pagination pagination-sm justify-content-end">
+    {% if page_obj.has_previous %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ q }}&status={{ status_filter }}">‹</a>
+    </li>
+    {% endif %}
+    <li class="page-item disabled">
+      <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    </li>
+    {% if page_obj.has_next %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ q }}&status={{ status_filter }}">›</a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+
 {% endblock %}

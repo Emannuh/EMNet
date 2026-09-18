@@ -1,9 +1,239 @@
 {% extends "base.html" %}
-{% block title %}Dashboard — NetSuite-ISP{% endblock %}
+{% block title %}Dashboard — Emmsuite ISP{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
+
 {% block content %}
-<div class="alert alert-info">
-  Welcome, <strong>{{ user.full_name|default:user.email }}</strong>.
-  Select a section from the sidebar to get started.
+
+<p class="text-muted mb-4">
+  Welcome back, <strong>{{ user.full_name|default:user.email }}</strong>.
+  Here's what's happening across your network right now.
+</p>
+
+<!-- ── Row 1: Network health ──────────────────────────────────────────────── -->
+<h6 class="text-uppercase text-muted small fw-bold mb-2">
+  <i class="bi bi-diagram-3 me-1"></i>Network Health
+</h6>
+<div class="row g-3 mb-4">
+
+  <div class="col-6 col-sm-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <span class="text-muted small">Total Devices</span>
+          <i class="bi bi-hdd-network text-secondary"></i>
+        </div>
+        <div class="fs-2 fw-bold">{{ net_total }}</div>
+        <a href="{% url 'network:index' %}" class="stretched-link text-decoration-none"></a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-sm-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <span class="text-muted small">Online</span>
+          <i class="bi bi-circle-fill text-success" style="font-size:.65rem;"></i>
+        </div>
+        <div class="fs-2 fw-bold text-success">{{ net_up }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-sm-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <span class="text-muted small">Offline</span>
+          <i class="bi bi-circle-fill text-danger" style="font-size:.65rem;"></i>
+        </div>
+        <div class="fs-2 fw-bold text-danger">{{ net_down }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-sm-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <span class="text-muted small">Unknown</span>
+          <i class="bi bi-circle text-secondary" style="font-size:.65rem;"></i>
+        </div>
+        <div class="fs-2 fw-bold text-secondary">{{ net_unknown }}</div>
+      </div>
+    </div>
+  </div>
+
 </div>
+
+<!-- Device status progress bar -->
+{% if net_total > 0 %}
+<div class="mb-4">
+  <div class="progress" style="height:8px; border-radius:4px;">
+    {% widthratio net_up net_total 100 as pct_up %}
+    {% widthratio net_down net_total 100 as pct_down %}
+    {% widthratio net_unknown net_total 100 as pct_unknown %}
+    <div class="progress-bar bg-success" style="width:{{ pct_up }}%" title="{{ net_up }} online"></div>
+    <div class="progress-bar bg-danger"  style="width:{{ pct_down }}%" title="{{ net_down }} offline"></div>
+    <div class="progress-bar bg-secondary" style="width:{{ pct_unknown }}%" title="{{ net_unknown }} unknown"></div>
+  </div>
+  <div class="d-flex gap-3 mt-1" style="font-size:.75rem;">
+    <span class="text-success"><i class="bi bi-circle-fill me-1" style="font-size:.5rem;"></i>Online</span>
+    <span class="text-danger"><i class="bi bi-circle-fill me-1" style="font-size:.5rem;"></i>Offline</span>
+    <span class="text-secondary"><i class="bi bi-circle me-1" style="font-size:.5rem;"></i>Unknown</span>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Row 2: Portal & Billing ────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+
+  <!-- Portal card -->
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between">
+        <h6 class="mb-0"><i class="bi bi-wifi me-2 text-primary"></i>Captive Portal</h6>
+        <a href="{% url 'portal:index' %}" class="btn btn-sm btn-outline-primary">Manage</a>
+      </div>
+      <div class="card-body">
+        <div class="row g-2">
+          <div class="col-6">
+            <div class="p-3 bg-light rounded text-center">
+              <div class="fs-3 fw-bold text-primary">{{ vouchers_active }}</div>
+              <div class="text-muted small">Active Vouchers</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-3 bg-light rounded text-center">
+              <div class="fs-3 fw-bold text-info">{{ sessions_live }}</div>
+              <div class="text-muted small">Live Sessions</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-3 bg-light rounded text-center">
+              <div class="fs-3 fw-bold">{{ vouchers_total }}</div>
+              <div class="text-muted small">Total Vouchers</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-3 bg-light rounded text-center">
+              <div class="fs-3 fw-bold">{{ sessions_total }}</div>
+              <div class="text-muted small">Total Sessions</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Billing card -->
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between">
+        <h6 class="mb-0"><i class="bi bi-credit-card me-2 text-success"></i>Billing</h6>
+        <a href="{% url 'billing:index' %}" class="btn btn-sm btn-outline-success">View All</a>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <div class="text-muted small mb-1">Total Revenue</div>
+          <div class="fs-3 fw-bold text-success">KES {{ revenue|floatformat:2 }}</div>
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <div class="p-3 bg-light rounded text-center">
+              <div class="fs-3 fw-bold text-success">{{ payments_completed }}</div>
+              <div class="text-muted small">Completed</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-3 bg-light rounded text-center">
+              <div class="fs-3 fw-bold text-warning">{{ payments_pending }}</div>
+              <div class="text-muted small">Pending</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Row 3: Super-admin tenant block (only shown to SUPER_ADMIN) ─────────── -->
+{% if user.is_super_admin %}
+<h6 class="text-uppercase text-muted small fw-bold mb-2">
+  <i class="bi bi-building me-1"></i>Tenants
+</h6>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-sm-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="text-muted small">Total ISPs</div>
+        <div class="fs-2 fw-bold">{{ tenants_total }}</div>
+        <a href="{% url 'tenants:list' %}" class="stretched-link text-decoration-none"></a>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-sm-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="text-muted small">Active ISPs</div>
+        <div class="fs-2 fw-bold text-success">{{ tenants_active }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body d-flex align-items-center gap-3">
+        <i class="bi bi-building-add fs-3 text-primary opacity-75"></i>
+        <div>
+          <div class="fw-semibold">Onboard a new ISP</div>
+          <a href="{% url 'tenants:create' %}" class="btn btn-sm btn-primary mt-1">
+            <i class="bi bi-plus-lg me-1"></i>New Tenant
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Quick actions ──────────────────────────────────────────────────────── -->
+<h6 class="text-uppercase text-muted small fw-bold mb-2">
+  <i class="bi bi-lightning me-1"></i>Quick Actions
+</h6>
+<div class="row g-3">
+  <div class="col-6 col-md-3">
+    <a href="{% url 'network:device_add' %}" class="card border-0 shadow-sm text-decoration-none text-dark h-100">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-plus-circle fs-2 text-primary mb-2 d-block"></i>
+        <div class="small fw-semibold">Add Device</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'portal:plan_add' %}" class="card border-0 shadow-sm text-decoration-none text-dark h-100">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-grid-plus fs-2 text-success mb-2 d-block"></i>
+        <div class="small fw-semibold">New Voucher Plan</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'portal:voucher_list' %}" class="card border-0 shadow-sm text-decoration-none text-dark h-100">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-ticket-perforated fs-2 text-info mb-2 d-block"></i>
+        <div class="small fw-semibold">View Vouchers</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{% url 'billing:index' %}" class="card border-0 shadow-sm text-decoration-none text-dark h-100">
+      <div class="card-body text-center py-4">
+        <i class="bi bi-receipt fs-2 text-warning mb-2 d-block"></i>
+        <div class="small fw-semibold">Payment History</div>
+      </div>
+    </a>
+  </div>
+</div>
+
 {% endblock %}

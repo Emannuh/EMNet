@@ -167,7 +167,8 @@ services:
       - static_volume:/app/staticfiles:ro
       - media_volume:/app/mediafiles:ro
     ports:
-      - "8080:80"
+      - "8080:80"      # public schema (super-admin)
+      - "8090:8090"    # deenet demo tenant (no hosts file needed)
     depends_on:
       - django
       - portal

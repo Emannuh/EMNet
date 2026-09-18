@@ -17,6 +17,7 @@ urlpatterns = [
     path("dashboard/", include("apps.network.urls")),
     path("portal-admin/", include("apps.portal.urls")),
     path("billing/", include("apps.billing.urls")),
+    path("subscribers/", include("apps.subscribers.urls")),
 ]
 
 if settings.DEBUG:

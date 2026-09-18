@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Subscribers — Emmsuite ISP{% endblock %}
+{% block page_title %}Subscriber Management{% endblock %}
+
+{% block content %}
+
+<!-- ── Stats row ─────────────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-sm-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body py-3">
+        <div class="text-muted small">Total Subscribers</div>
+        <div class="fs-2 fw-bold">{{ total_subscribers }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-sm-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body py-3">
+        <div class="text-muted small">Active</div>
+        <div class="fs-2 fw-bold text-success">{{ active_subscribers }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-sm-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body py-3">
+        <div class="text-muted small">Suspended</div>
+        <div class="fs-2 fw-bold text-danger">{{ suspended_subscribers }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-sm-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body py-3">
+        <div class="text-muted small">Pending</div>
+        <div class="fs-2 fw-bold text-warning">{{ pending_subscribers }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Revenue + invoice stats ───────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body py-3">
+        <div class="text-muted small">Total Revenue Collected</div>
+        <div class="fs-3 fw-bold text-success">KES {{ total_revenue|floatformat:2 }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body py-3">
+        <div class="text-muted small">Unpaid Invoices</div>
+        <div class="fs-3 fw-bold text-warning">{{ unpaid_invoices }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm border-danger">
+      <div class="card-body py-3">
+        <div class="text-muted small">Overdue Invoices</div>
+        <div class="fs-3 fw-bold text-danger">{{ overdue_invoices }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Quick actions ─────────────────────────────────────────────────────── -->
+<div class="d-flex flex-wrap gap-2 mb-4">
+  <a href="{% url 'subscribers:subscriber_add' %}" class="btn btn-primary btn-sm">
+    <i class="bi bi-person-plus me-1"></i>New Subscriber
+  </a>
+  <a href="{% url 'subscribers:subscriber_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-people me-1"></i>All Subscribers
+  </a>
+  <a href="{% url 'subscribers:invoice_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-receipt me-1"></i>Invoices
+  </a>
+  <a href="{% url 'subscribers:plan_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-grid me-1"></i>Service Plans
+  </a>
+  <a href="{% url 'subscribers:ippool_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-diagram-2 me-1"></i>IP Pools
+  </a>
+</div>
+
+<div class="row g-4">
+
+  <!-- ── Recent subscribers ───────────────────────────────────────────── -->
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="bi bi-person-lines-fill me-2"></i>Recent Subscribers</h6>
+        <a href="{% url 'subscribers:subscriber_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
+      </div>
+      <ul class="list-group list-group-flush">
+        {% for sub in recent_subscribers %}
+        <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+          <div>
+            <a href="{% url 'subscribers:subscriber_detail' sub.pk %}" class="fw-semibold text-decoration-none">
+              {{ sub.full_name }}
+            </a>
+            <div class="text-muted small">{{ sub.pppoe_username }} · {{ sub.phone }}</div>
+          </div>
+          {% if sub.status == "active" %}
+            <span class="badge bg-success-subtle text-success">Active</span>
+          {% elif sub.status == "suspended" %}
+            <span class="badge bg-danger-subtle text-danger">Suspended</span>
+          {% elif sub.status == "pending" %}
+            <span class="badge bg-warning-subtle text-warning">Pending</span>
+          {% else %}
+            <span class="badge bg-secondary-subtle text-secondary">{{ sub.get_status_display }}</span>
+          {% endif %}
+        </li>
+        {% empty %}
+        <li class="list-group-item text-muted text-center py-4">No subscribers yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <!-- ── Overdue invoices alert ────────────────────────────────────────── -->
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 text-danger">
+          <i class="bi bi-exclamation-triangle me-2"></i>Overdue Invoices
+        </h6>
+        <a href="{% url 'subscribers:invoice_list' %}?status=overdue" class="btn btn-sm btn-outline-danger">View All</a>
+      </div>
+      <ul class="list-group list-group-flush">
+        {% for inv in overdue_list %}
+        <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+          <div>
+            <a href="{% url 'subscribers:invoice_detail' inv.pk %}" class="fw-semibold text-decoration-none text-danger">
+              {{ inv.subscription.subscriber.full_name }}
+            </a>
+            <div class="text-muted small">Due {{ inv.due_date|date:"d M Y" }} · KES {{ inv.amount_kes }}</div>
+          </div>
+          <a href="{% url 'subscribers:invoice_detail' inv.pk %}" class="btn btn-sm btn-outline-danger">
+            <i class="bi bi-arrow-right"></i>
+          </a>
+        </li>
+        {% empty %}
+        <li class="list-group-item text-muted text-center py-4">
+          <i class="bi bi-check-circle text-success me-1"></i>No overdue invoices.
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Vouchers — Emmsuite ISP{% endblock %}
+{% block page_title %}Vouchers{% endblock %}
+
+{% block content %}
+
+<a href="{% url 'portal:index' %}" class="text-muted small d-inline-flex align-items-center mb-3">
+  <i class="bi bi-arrow-left me-1"></i> Back to portal admin
+</a>
+
+<!-- ── Filters ────────────────────────────────────────────────────────────── -->
+<div class="d-flex flex-wrap gap-2 mb-3">
+  <form method="get" class="d-flex gap-2 flex-wrap">
+    <input type="search" name="q" value="{{ q }}"
+           class="form-control form-control-sm" style="max-width:220px;"
+           placeholder="Search phone number…">
+    <select name="status" class="form-select form-select-sm" style="max-width:180px;">
+      <option value="">All statuses</option>
+      {% for val, label in status_choices %}
+        <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-sm btn-outline-secondary">Filter</button>
+    {% if q or status_filter %}
+      <a href="{% url 'portal:voucher_list' %}" class="btn btn-sm btn-outline-danger">Clear</a>
+    {% endif %}
+  </form>
+</div>
+
+<!-- ── Voucher table ──────────────────────────────────────────────────────── -->
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Code</th>
+          <th>Plan</th>
+          <th>Phone</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Expires</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for voucher in vouchers %}
+        <tr>
+          <td><code class="small">{{ voucher.code }}</code></td>
+          <td>{{ voucher.plan.name }}</td>
+          <td>{{ voucher.phone_number|default:"—" }}</td>
+          <td>
+            {% if voucher.status == "active" %}
+              <span class="badge bg-success-subtle text-success">Active</span>
+            {% elif voucher.status == "used" %}
+              <span class="badge bg-secondary-subtle text-secondary">Used</span>
+            {% elif voucher.status == "expired" %}
+              <span class="badge bg-danger-subtle text-danger">Expired</span>
+            {% else %}
+              <span class="badge bg-warning-subtle text-warning">Pending</span>
+            {% endif %}
+          </td>
+          <td class="text-muted small">{{ voucher.created_at|date:"d M Y H:i" }}</td>
+          <td class="text-muted small">{{ voucher.expires_at|date:"d M Y H:i"|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-5">
+            <i class="bi bi-ticket-perforated fs-2 d-block mb-2 opacity-25"></i>
+            No vouchers found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Pagination ─────────────────────────────────────────────────────────── -->
+{% if is_paginated %}
+<nav class="mt-3">
+  <ul class="pagination pagination-sm justify-content-end">
+    {% if page_obj.has_previous %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ q }}&status={{ status_filter }}">‹</a>
+    </li>
+    {% endif %}
+    <li class="page-item disabled">
+      <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    </li>
+    {% if page_obj.has_next %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ q }}&status={{ status_filter }}">›</a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+
+{% endblock %}

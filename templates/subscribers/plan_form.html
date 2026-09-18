@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{% if object %}Edit Plan{% else %}New Service Plan{% endif %} — Emmsuite ISP{% endblock %}
+{% block page_title %}{% if object %}Edit Plan{% else %}New Service Plan{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-6">
+  <a href="{% url 'subscribers:plan_list' %}" class="text-muted small d-inline-flex align-items-center mb-3">
+    <i class="bi bi-arrow-left me-1"></i> Back to plans
+  </a>
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3">
+      <h5 class="mb-0">
+        <i class="bi bi-grid me-2 text-primary"></i>
+        {% if object %}Edit "{{ object.name }}"{% else %}New Service Plan{% endif %}
+      </h5>
+    </div>
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <label class="form-label">Plan Name <span class="text-danger">*</span></label>
+          <input type="text" name="name" value="{{ form.name.value|default:'' }}"
+                 class="form-control {% if form.name.errors %}is-invalid{% endif %}"
+                 placeholder="20 Mbps Home Fiber" required>
+          {% for e in form.name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Description</label>
+          <textarea name="description" rows="2" class="form-control"
+                    placeholder="Unlimited browsing, suitable for 1-3 devices">{{ form.description.value|default:'' }}</textarea>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-sm-6">
+            <label class="form-label">Download Speed (Mbps) <span class="text-danger">*</span></label>
+            <input type="number" name="download_mbps"
+                   value="{{ form.download_mbps.value|default:'' }}"
+                   class="form-control {% if form.download_mbps.errors %}is-invalid{% endif %}"
+                   min="1" required>
+            {% for e in form.download_mbps.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Upload Speed (Mbps) <span class="text-danger">*</span></label>
+            <input type="number" name="upload_mbps"
+                   value="{{ form.upload_mbps.value|default:'' }}"
+                   class="form-control {% if form.upload_mbps.errors %}is-invalid{% endif %}"
+                   min="1" required>
+            {% for e in form.upload_mbps.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-sm-6">
+            <label class="form-label">Price (KES) <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text">KES</span>
+              <input type="number" name="price_kes"
+                     value="{{ form.price_kes.value|default:'' }}"
+                     class="form-control {% if form.price_kes.errors %}is-invalid{% endif %}"
+                     min="0" step="0.01" required>
+              {% for e in form.price_kes.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Billing Cycle</label>
+            <select name="billing_cycle" class="form-select">
+              {% for val, label in form.fields.billing_cycle.choices %}
+                <option value="{{ val }}" {% if form.billing_cycle.value == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-sm-6">
+            <label class="form-label">Connection Type</label>
+            <select name="connection_type" class="form-select">
+              {% for val, label in form.fields.connection_type.choices %}
+                <option value="{{ val }}" {% if form.connection_type.value == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Grace Period (days)</label>
+            <input type="number" name="grace_days"
+                   value="{{ form.grace_days.value|default:'3' }}"
+                   class="form-control" min="0" max="30">
+            <div class="form-text">Days after due date before auto-suspend.</div>
+          </div>
+        </div>
+
+        <div class="mb-4 form-check">
+          <input type="checkbox" name="is_active" id="id_is_active" class="form-check-input"
+                 {% if form.is_active.value != False %}checked{% endif %}>
+          <label class="form-check-label" for="id_is_active">Active (available for assignment)</label>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-floppy me-1"></i>Save Plan
+          </button>
+          <a href="{% url 'subscribers:plan_list' %}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+</div>
+{% endblock %}

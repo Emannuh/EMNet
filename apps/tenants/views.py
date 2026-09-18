@@ -42,8 +42,11 @@ class TenantListView(SuperAdminRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["q"] = self.request.GET.get("q", "")
-        ctx["total"] = Tenant.objects.count()
-        ctx["active"] = Tenant.objects.filter(is_active=True).count()
+        total = Tenant.objects.exclude(schema_name="public").count()
+        active = Tenant.objects.exclude(schema_name="public").filter(is_active=True).count()
+        ctx["total"] = total
+        ctx["active"] = active
+        ctx["inactive"] = total - active
         return ctx
 
 

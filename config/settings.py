@@ -17,12 +17,20 @@ environ.Env.read_env(BASE_DIR / ".env")
 # ── Core ──────────────────────────────────────────────────────────────────────
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env("DJANGO_DEBUG")
-ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1", "deenet.localhost"])
 
 # CSRF trusted origins — must include every scheme+host the browser posts from
 CSRF_TRUSTED_ORIGINS = env.list(
     "CSRF_TRUSTED_ORIGINS",
-    default=["http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:8000"],
+    default=[
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://localhost:8000",
+        "http://localhost:8090",
+        "http://127.0.0.1:8090",
+        "http://deenet.localhost:8090",
+        "http://deenet.localhost:8080",
+    ],
 )
 
 # ── django-tenants ────────────────────────────────────────────────────────────
@@ -59,6 +67,7 @@ TENANT_APPS = [
     "apps.network",
     "apps.billing",
     "apps.radius",
+    "apps.subscribers",
 ]
 
 INSTALLED_APPS = list(SHARED_APPS) + [
@@ -113,7 +122,16 @@ DATABASES = {
         "PASSWORD": env("POSTGRES_PASSWORD"),
         "HOST": env("POSTGRES_HOST", default="db"),
         "PORT": env("POSTGRES_PORT", default="5432"),
-    }
+    },
+    # Separate RADIUS database used by FreeRADIUS (not tenant-switched)
+    "radius": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": env("RADIUS_DB_NAME", default="radius"),
+        "USER": env("RADIUS_DB_USER", default="radius"),
+        "PASSWORD": env("RADIUS_DB_PASSWORD"),
+        "HOST": env("RADIUS_DB_HOST", default="db"),
+        "PORT": env("RADIUS_DB_PORT", default="5432"),
+    },
 }
 
 DATABASE_ROUTERS = ["django_tenants.routers.TenantSyncRouter"]
@@ -140,6 +158,39 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "Africa/Nairobi"
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
+# ── Celery Beat schedule ──────────────────────────────────────────────────────
+from celery.schedules import crontab  # noqa: E402
+
+CELERY_BEAT_SCHEDULE = {
+    # ── Network: SNMP device polling every 5 minutes ──────────────────────
+    "snmp-poll-all-tenants": {
+        "task": "network.poll_all_tenants",
+        "schedule": crontab(minute="*/5"),
+        "options": {"queue": "default"},
+    },
+
+    # ── Subscribers: generate invoices daily at 06:00 EAT ─────────────────
+    "subscriber-generate-invoices": {
+        "task": "subscribers.generate_invoices_for_all_tenants",
+        "schedule": crontab(hour=6, minute=0),
+        "options": {"queue": "default"},
+    },
+
+    # ── Subscribers: payment reminders daily at 08:00 EAT ─────────────────
+    "subscriber-payment-reminders": {
+        "task": "subscribers.send_payment_reminders_for_all_tenants",
+        "schedule": crontab(hour=8, minute=0),
+        "options": {"queue": "default"},
+    },
+
+    # ── Subscribers: overdue check + auto-suspend daily at 09:00 EAT ──────
+    "subscriber-overdue-check": {
+        "task": "subscribers.check_overdue_for_all_tenants",
+        "schedule": crontab(hour=9, minute=0),
+        "options": {"queue": "default"},
+    },
+}
+
 # ── Auth ──────────────────────────────────────────────────────────────────────
 AUTH_USER_MODEL = "accounts.User"
 
@@ -151,7 +202,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LOGIN_URL = "/accounts/login/"
-LOGIN_REDIRECT_URL = "/dashboard/"
+LOGIN_REDIRECT_URL = "/accounts/dashboard/"
 LOGOUT_REDIRECT_URL = "/accounts/login/"
 
 # ── Internationalisation ──────────────────────────────────────────────────────

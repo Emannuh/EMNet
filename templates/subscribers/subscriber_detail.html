@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% block title %}{{ subscriber.full_name }} — Emmsuite ISP{% endblock %}
+{% block page_title %}{{ subscriber.full_name }}{% endblock %}
+
+{% block content %}
+
+<a href="{% url 'subscribers:subscriber_list' %}" class="text-muted small d-inline-flex align-items-center mb-3">
+  <i class="bi bi-arrow-left me-1"></i> Back to subscribers
+</a>
+
+<!-- ── Status banner ─────────────────────────────────────────────────────── -->
+<div class="d-flex align-items-center gap-3 mb-4">
+  {% if subscriber.status == "active" %}
+    <span class="badge bg-success fs-6 px-3 py-2">
+      <i class="bi bi-circle-fill me-1" style="font-size:.6rem;"></i>Active
+    </span>
+  {% elif subscriber.status == "suspended" %}
+    <span class="badge bg-danger fs-6 px-3 py-2">
+      <i class="bi bi-pause-circle me-1"></i>Suspended
+    </span>
+  {% elif subscriber.status == "pending" %}
+    <span class="badge bg-warning text-dark fs-6 px-3 py-2">
+      <i class="bi bi-hourglass me-1"></i>Pending Activation
+    </span>
+  {% else %}
+    <span class="badge bg-secondary fs-6 px-3 py-2">{{ subscriber.get_status_display }}</span>
+  {% endif %}
+
+  <!-- Action buttons -->
+  <div class="ms-auto d-flex gap-2">
+    <a href="{% url 'subscribers:subscriber_edit' subscriber.pk %}"
+       class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-pencil me-1"></i>Edit
+    </a>
+    {% if subscriber.status == "active" or subscriber.status == "pending" %}
+    <form method="post" action="{% url 'subscribers:subscriber_suspend' subscriber.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="reason" value="Manual suspension by staff">
+      <button type="submit" class="btn btn-sm btn-outline-danger"
+              onclick="return confirm('Suspend this subscriber?')">
+        <i class="bi bi-pause-circle me-1"></i>Suspend
+      </button>
+    </form>
+    {% elif subscriber.status == "suspended" %}
+    <form method="post" action="{% url 'subscribers:subscriber_reactivate' subscriber.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-sm btn-outline-success">
+        <i class="bi bi-play-circle me-1"></i>Reactivate
+      </button>
+    </form>
+    {% endif %}
+    {% if subscriber.status != "cancelled" %}
+    <form method="post" action="{% url 'subscribers:subscriber_cancel' subscriber.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-sm btn-outline-secondary"
+              onclick="return confirm('Cancel this subscriber? RADIUS credentials will be removed.')">
+        <i class="bi bi-x-circle me-1"></i>Cancel
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-4">
+
+  <!-- ── Left column ───────────────────────────────────────────────────── -->
+  <div class="col-lg-5">
+
+    <!-- Personal details -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0"><i class="bi bi-person me-2"></i>Account Details</h6>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-sm-5 text-muted">Full Name</dt>
+          <dd class="col-sm-7 fw-semibold">{{ subscriber.full_name }}</dd>
+
+          <dt class="col-sm-5 text-muted">Phone</dt>
+          <dd class="col-sm-7">{{ subscriber.phone }}</dd>
+
+          <dt class="col-sm-5 text-muted">Email</dt>
+          <dd class="col-sm-7">{{ subscriber.email|default:"—" }}</dd>
+
+          <dt class="col-sm-5 text-muted">ID Number</dt>
+          <dd class="col-sm-7">{{ subscriber.id_number|default:"—" }}</dd>
+
+          <dt class="col-sm-5 text-muted">Address</dt>
+          <dd class="col-sm-7">{{ subscriber.address }}</dd>
+
+          <dt class="col-sm-5 text-muted">PPPoE Username</dt>
+          <dd class="col-sm-7"><code>{{ subscriber.pppoe_username }}</code></dd>
+
+          <dt class="col-sm-5 text-muted">CPE Serial</dt>
+          <dd class="col-sm-7">{{ subscriber.cpe_serial|default:"—" }}</dd>
+
+          <dt class="col-sm-5 text-muted">CPE MAC</dt>
+          <dd class="col-sm-7"><code>{{ subscriber.cpe_mac|default:"—" }}</code></dd>
+
+          <dt class="col-sm-5 text-muted">Created</dt>
+          <dd class="col-sm-7">{{ subscriber.created_at|date:"d M Y H:i" }}</dd>
+        </dl>
+        {% if subscriber.notes %}
+        <hr class="my-2">
+        <div class="text-muted small">{{ subscriber.notes }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Active subscription -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0"><i class="bi bi-router me-2"></i>Active Subscription</h6>
+      </div>
+      <div class="card-body">
+        {% if active_sub %}
+        <dl class="row mb-0 small">
+          <dt class="col-sm-5 text-muted">Plan</dt>
+          <dd class="col-sm-7 fw-semibold">{{ active_sub.plan.name }}</dd>
+
+          <dt class="col-sm-5 text-muted">Speed</dt>
+          <dd class="col-sm-7">↓ {{ active_sub.plan.download_mbps }} Mbps / ↑ {{ active_sub.plan.upload_mbps }} Mbps</dd>
+
+          <dt class="col-sm-5 text-muted">Price</dt>
+          <dd class="col-sm-7">KES {{ active_sub.plan.price_kes }}/{{ active_sub.plan.billing_cycle }}</dd>
+
+          <dt class="col-sm-5 text-muted">Connection</dt>
+          <dd class="col-sm-7">{{ active_sub.plan.get_connection_type_display }}</dd>
+
+          <dt class="col-sm-5 text-muted">Assigned IP</dt>
+          <dd class="col-sm-7">
+            {% if active_sub.assigned_ip %}
+              <code>{{ active_sub.assigned_ip.address }}</code>
+            {% else %}Dynamic{% endif %}
+          </dd>
+
+          <dt class="col-sm-5 text-muted">Next Due</dt>
+          <dd class="col-sm-7">{{ active_sub.next_due_date|date:"d M Y" }}</dd>
+
+          <dt class="col-sm-5 text-muted">Since</dt>
+          <dd class="col-sm-7">{{ active_sub.start_date|date:"d M Y" }}</dd>
+        </dl>
+
+        <!-- Plan change -->
+        <hr class="my-3">
+        <form method="post" action="{% url 'subscribers:plan_change' subscriber.pk %}"
+              class="d-flex gap-2">
+          {% csrf_token %}
+          <select name="new_plan_id" class="form-select form-select-sm">
+            {% for plan in plans %}
+              <option value="{{ plan.pk }}"
+                {% if plan.pk == active_sub.plan.pk %}selected{% endif %}>
+                {{ plan.name }} — KES {{ plan.price_kes }}
+              </option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">
+            <i class="bi bi-arrow-repeat me-1"></i>Change Plan
+          </button>
+        </form>
+
+        {% else %}
+        <p class="text-muted small mb-3">No active subscription.</p>
+
+        <!-- Assign plan -->
+        <form method="post" action="{% url 'subscribers:subscription_assign' subscriber.pk %}">
+          {% csrf_token %}
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Assign a Plan</label>
+            <select name="plan_id" class="form-select form-select-sm mb-2" required>
+              <option value="">— select plan —</option>
+              {% for plan in plans %}
+                <option value="{{ plan.pk }}">{{ plan.name }} — KES {{ plan.price_kes }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-sm btn-success w-100">
+            <i class="bi bi-check-circle me-1"></i>Activate Subscription
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Right column ──────────────────────────────────────────────────── -->
+  <div class="col-lg-7">
+
+    <!-- Recent invoices -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="bi bi-receipt me-2"></i>Recent Invoices</h6>
+        <a href="{% url 'subscribers:invoice_list' %}?q={{ subscriber.full_name }}"
+           class="btn btn-sm btn-outline-secondary">All</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 small">
+          <thead class="table-light">
+            <tr>
+              <th>Reference</th>
+              <th>Amount</th>
+              <th>Period</th>
+              <th>Due</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inv in invoices %}
+            <tr>
+              <td><code>{{ inv.reference|stringformat:"s"|slice:":8"|upper }}</code></td>
+              <td class="fw-semibold">KES {{ inv.amount_kes }}</td>
+              <td class="text-muted">{{ inv.period_start|date:"d M" }} – {{ inv.period_end|date:"d M Y" }}</td>
+              <td class="text-muted">{{ inv.due_date|date:"d M Y" }}</td>
+              <td>
+                {% if inv.status == "paid" %}
+                  <span class="badge bg-success-subtle text-success">Paid</span>
+                {% elif inv.status == "overdue" %}
+                  <span class="badge bg-danger-subtle text-danger">Overdue</span>
+                {% elif inv.status == "unpaid" %}
+                  <span class="badge bg-warning-subtle text-warning">Unpaid</span>
+                {% else %}
+                  <span class="badge bg-secondary-subtle text-secondary">{{ inv.get_status_display }}</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{% url 'subscribers:invoice_detail' inv.pk %}"
+                   class="btn btn-sm btn-outline-secondary">
+                  <i class="bi bi-eye"></i>
+                </a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-3">No invoices yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Subscription history -->
+    {% if subscriptions %}
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Subscription History</h6>
+      </div>
+      <ul class="list-group list-group-flush small">
+        {% for s in subscriptions %}
+        <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+          <div>
+            <span class="fw-semibold">{{ s.plan.name }}</span>
+            <span class="text-muted ms-2">{{ s.start_date|date:"d M Y" }}</span>
+            {% if s.suspension_reason %}
+              <div class="text-muted">Suspended: {{ s.suspension_reason }}</div>
+            {% endif %}
+          </div>
+          {% if s.status == "active" %}
+            <span class="badge bg-success-subtle text-success">Active</span>
+          {% elif s.status == "suspended" %}
+            <span class="badge bg-danger-subtle text-danger">Suspended</span>
+          {% else %}
+            <span class="badge bg-secondary-subtle text-secondary">Cancelled</span>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

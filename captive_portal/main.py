@@ -1,5 +1,5 @@
 """
-NetSuite-ISP — Captive Portal FastAPI Service
+Emmsuite ISP — Captive Portal FastAPI Service
 =============================================
 Public-facing, high-traffic service that handles:
   1. Splash page delivery (redirect URL from NAS/router)
@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="NetSuite-ISP Captive Portal",
+    title="Emmsuite ISP Captive Portal",
     description="Voucher purchase, redemption, and WiFi session management.",
     version="0.1.0",
     docs_url="/docs" if settings.debug else None,   # hide docs in prod

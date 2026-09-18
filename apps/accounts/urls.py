@@ -6,5 +6,6 @@ app_name = "accounts"
 urlpatterns = [
     path("login/", views.LoginView.as_view(), name="login"),
     path("logout/", views.LogoutView.as_view(), name="logout"),
-    path("dashboard/", views.DashboardRedirectView.as_view(), name="dashboard"),
+    path("dashboard/", views.DashboardView.as_view(), name="dashboard"),
+    path("public/", views.PublicLandingView.as_view(), name="public_landing"),
 ]

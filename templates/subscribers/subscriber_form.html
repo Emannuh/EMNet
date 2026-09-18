@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}{% if object %}Edit Subscriber{% else %}New Subscriber{% endif %} — Emmsuite ISP{% endblock %}
+{% block page_title %}{% if object %}Edit Subscriber{% else %}New Subscriber{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-8">
+
+  <a href="{% url 'subscribers:subscriber_list' %}" class="text-muted small d-inline-flex align-items-center mb-3">
+    <i class="bi bi-arrow-left me-1"></i> Back to subscribers
+  </a>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h5 class="mb-0">
+          <i class="bi bi-person me-2 text-primary"></i>
+          {% if object %}Edit {{ object.full_name }}{% else %}New Subscriber{% endif %}
+        </h5>
+      </div>
+      <div class="card-body">
+
+        <h6 class="text-uppercase text-muted small fw-bold mb-3">Personal Details</h6>
+        <div class="row g-3 mb-3">
+          <div class="col-sm-6">
+            <label class="form-label">Full Name <span class="text-danger">*</span></label>
+            <input type="text" name="full_name"
+                   value="{{ form.full_name.value|default:'' }}"
+                   class="form-control {% if form.full_name.errors %}is-invalid{% endif %}"
+                   placeholder="John Kamau" required>
+            {% for e in form.full_name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Phone <span class="text-danger">*</span></label>
+            <input type="text" name="phone"
+                   value="{{ form.phone.value|default:'' }}"
+                   class="form-control {% if form.phone.errors %}is-invalid{% endif %}"
+                   placeholder="0712345678" required>
+            {% for e in form.phone.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Email</label>
+            <input type="email" name="email"
+                   value="{{ form.email.value|default:'' }}"
+                   class="form-control" placeholder="john@email.com">
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">ID / Passport Number</label>
+            <input type="text" name="id_number"
+                   value="{{ form.id_number.value|default:'' }}"
+                   class="form-control" placeholder="12345678">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Installation Address <span class="text-danger">*</span></label>
+            <textarea name="address" rows="2"
+                      class="form-control {% if form.address.errors %}is-invalid{% endif %}"
+                      placeholder="House No. 5, Ngong Road, Nairobi" required>{{ form.address.value|default:'' }}</textarea>
+            {% for e in form.address.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+
+        <hr>
+        <h6 class="text-uppercase text-muted small fw-bold mb-3">CPE / ONT Details</h6>
+        <div class="row g-3 mb-3">
+          <div class="col-sm-6">
+            <label class="form-label">CPE Serial Number</label>
+            <input type="text" name="cpe_serial"
+                   value="{{ form.cpe_serial.value|default:'' }}"
+                   class="form-control" placeholder="HWTC1234ABCD">
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">CPE MAC Address</label>
+            <input type="text" name="cpe_mac"
+                   value="{{ form.cpe_mac.value|default:'' }}"
+                   class="form-control" placeholder="AA:BB:CC:DD:EE:FF">
+          </div>
+        </div>
+
+        <hr>
+        <h6 class="text-uppercase text-muted small fw-bold mb-3">RADIUS / PPPoE Credentials</h6>
+        <div class="row g-3 mb-3">
+          <div class="col-sm-6">
+            <label class="form-label">PPPoE Username <span class="text-danger">*</span></label>
+            <input type="text" name="pppoe_username"
+                   value="{{ form.pppoe_username.value|default:'' }}"
+                   class="form-control {% if form.pppoe_username.errors %}is-invalid{% endif %}"
+                   placeholder="john.kamau@acmeisp" required>
+            {% for e in form.pppoe_username.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">PPPoE Password <span class="text-danger">*</span></label>
+            <input type="text" name="pppoe_password"
+                   value="{{ form.pppoe_password.value|default:'' }}"
+                   class="form-control {% if form.pppoe_password.errors %}is-invalid{% endif %}"
+                   required>
+            {% for e in form.pppoe_password.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" rows="2" class="form-control"
+                    placeholder="Any notes about this subscriber…">{{ form.notes.value|default:'' }}</textarea>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Assign plan on create -->
+    {% if not object %}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0"><i class="bi bi-grid me-2 text-success"></i>Assign Service Plan (optional)</h6>
+        <small class="text-muted">Leave blank to assign a plan later from the subscriber detail page.</small>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label class="form-label">Service Plan</label>
+            <select name="plan_id" class="form-select">
+              <option value="">— assign later —</option>
+              {% for plan in plans %}
+                <option value="{{ plan.pk }}">
+                  {{ plan.name }} — KES {{ plan.price_kes }}/{{ plan.billing_cycle }}
+                  (↓{{ plan.download_mbps }}Mbps ↑{{ plan.upload_mbps }}Mbps)
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">IP Pool (for static/DHCP+MAC)</label>
+            <select name="ip_pool_id" class="form-select">
+              <option value="">— dynamic / not needed —</option>
+              {% for pool in ip_pools %}
+                <option value="{{ pool.pk }}">{{ pool.name }} ({{ pool.network }})</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary px-4">
+        <i class="bi bi-floppy me-1"></i>
+        {% if object %}Save Changes{% else %}Create Subscriber{% endif %}
+      </button>
+      <a href="{% url 'subscribers:subscriber_list' %}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+
+  </form>
+</div>
+</div>
+{% endblock %}

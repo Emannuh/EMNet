@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Invoice — Emmsuite ISP{% endblock %}
+{% block page_title %}Invoice Detail{% endblock %}
+
+{% block content %}
+<a href="{% url 'subscribers:invoice_list' %}" class="text-muted small d-inline-flex align-items-center mb-3">
+  <i class="bi bi-arrow-left me-1"></i> Back to invoices
+</a>
+
+<div class="row g-4">
+
+  <!-- ── Invoice card ───────────────────────────────────────────────────── -->
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+          <i class="bi bi-receipt me-2"></i>
+          INV-{{ invoice.reference|stringformat:"s"|slice:":8"|upper }}
+        </h5>
+        {% if invoice.status == "paid" %}
+          <span class="badge bg-success fs-6 px-3">Paid</span>
+        {% elif invoice.status == "overdue" %}
+          <span class="badge bg-danger fs-6 px-3">Overdue</span>
+        {% elif invoice.status == "unpaid" %}
+          <span class="badge bg-warning text-dark fs-6 px-3">Unpaid</span>
+        {% else %}
+          <span class="badge bg-secondary fs-6 px-3">{{ invoice.get_status_display }}</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4 text-muted">Subscriber</dt>
+          <dd class="col-sm-8">
+            <a href="{% url 'subscribers:subscriber_detail' invoice.subscription.subscriber.pk %}"
+               class="fw-semibold text-decoration-none">
+              {{ invoice.subscription.subscriber.full_name }}
+            </a>
+            <div class="text-muted small">{{ invoice.subscription.subscriber.phone }}</div>
+          </dd>
+
+          <dt class="col-sm-4 text-muted">Plan</dt>
+          <dd class="col-sm-8">{{ invoice.subscription.plan.name }}</dd>
+
+          <dt class="col-sm-4 text-muted">Amount</dt>
+          <dd class="col-sm-8 fw-bold fs-5">KES {{ invoice.amount_kes }}</dd>
+
+          <dt class="col-sm-4 text-muted">Billing Period</dt>
+          <dd class="col-sm-8">{{ invoice.period_start|date:"d M Y" }} – {{ invoice.period_end|date:"d M Y" }}</dd>
+
+          <dt class="col-sm-4 text-muted">Due Date</dt>
+          <dd class="col-sm-8 {% if invoice.is_overdue %}text-danger fw-semibold{% endif %}">
+            {{ invoice.due_date|date:"d M Y" }}
+            {% if invoice.is_overdue %}<span class="badge bg-danger ms-2">Overdue</span>{% endif %}
+          </dd>
+
+          <dt class="col-sm-4 text-muted">Created</dt>
+          <dd class="col-sm-8 text-muted">{{ invoice.created_at|date:"d M Y H:i" }}</dd>
+        </dl>
+      </div>
+
+      <!-- Actions -->
+      {% if invoice.status != "paid" and invoice.status != "cancelled" %}
+      <div class="card-footer bg-white border-top py-3">
+        <div class="d-flex flex-wrap gap-2">
+
+          <!-- Send M-Pesa STK Push -->
+          <form method="post" action="{% url 'subscribers:invoice_send_payment' invoice.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">
+              <i class="bi bi-phone me-1"></i>Send M-Pesa Prompt
+            </button>
+          </form>
+
+          <!-- Mark paid manually -->
+          <button class="btn btn-outline-secondary" data-bs-toggle="collapse"
+                  data-bs-target="#manual-pay-form">
+            <i class="bi bi-cash me-1"></i>Mark as Paid Manually
+          </button>
+        </div>
+
+        <div class="collapse mt-3" id="manual-pay-form">
+          <form method="post" action="{% url 'subscribers:invoice_mark_paid' invoice.pk %}"
+                class="d-flex gap-2">
+            {% csrf_token %}
+            <input type="text" name="receipt_number"
+                   class="form-control form-control-sm"
+                   placeholder="Receipt / reference number (optional)">
+            <button type="submit" class="btn btn-sm btn-outline-success text-nowrap">
+              <i class="bi bi-check-lg me-1"></i>Confirm Paid
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ── Payment history ────────────────────────────────────────────────── -->
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Payment Attempts</h6>
+      </div>
+      {% if payments %}
+      <ul class="list-group list-group-flush">
+        {% for p in payments %}
+        <li class="list-group-item py-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-semibold small">KES {{ p.amount_kes }}</div>
+              <div class="text-muted" style="font-size:.8rem;">
+                {{ p.phone_number }}
+                {% if p.mpesa_receipt_number %}
+                  · <code>{{ p.mpesa_receipt_number }}</code>
+                {% endif %}
+              </div>
+              <div class="text-muted" style="font-size:.75rem;">
+                {{ p.created_at|date:"d M Y H:i" }}
+              </div>
+            </div>
+            {% if p.status == "completed" %}
+              <span class="badge bg-success-subtle text-success">Completed</span>
+            {% elif p.status == "pending" %}
+              <span class="badge bg-warning-subtle text-warning">Pending</span>
+            {% else %}
+              <span class="badge bg-danger-subtle text-danger" title="{{ p.failure_reason }}">Failed</span>
+            {% endif %}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="card-body text-center text-muted py-4">
+        <i class="bi bi-clock-history opacity-25 fs-2 d-block mb-2"></i>
+        No payment attempts yet.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}{% if object %}Edit Plan{% else %}New Plan{% endif %} — Emmsuite ISP{% endblock %}
+{% block page_title %}{% if object %}Edit Plan{% else %}New Voucher Plan{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-5">
+
+  <a href="{% url 'portal:index' %}" class="text-muted small d-inline-flex align-items-center mb-3">
+    <i class="bi bi-arrow-left me-1"></i> Back to plans
+  </a>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3">
+      <h5 class="mb-0">
+        <i class="bi bi-grid me-2 text-primary"></i>
+        {% if object %}Edit "{{ object.name }}"{% else %}Create Voucher Plan{% endif %}
+      </h5>
+      <small class="text-muted">Set either duration, data, or both to define what the voucher grants.</small>
+    </div>
+    <div class="card-body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <label class="form-label">Plan Name <span class="text-danger">*</span></label>
+          <input type="text" name="name" value="{{ form.name.value|default:'' }}"
+                 class="form-control {% if form.name.errors %}is-invalid{% endif %}"
+                 placeholder="1 Hour Browsing" required>
+          {% for e in form.name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-sm-6">
+            <label class="form-label">Duration (minutes)</label>
+            <input type="number" name="duration_minutes"
+                   value="{{ form.duration_minutes.value|default:'' }}"
+                   class="form-control {% if form.duration_minutes.errors %}is-invalid{% endif %}"
+                   min="1" placeholder="e.g. 60 for 1 hour">
+            {% for e in form.duration_minutes.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Data (MB)</label>
+            <input type="number" name="data_mb"
+                   value="{{ form.data_mb.value|default:'' }}"
+                   class="form-control {% if form.data_mb.errors %}is-invalid{% endif %}"
+                   min="1" placeholder="e.g. 500 for 500 MB">
+            {% for e in form.data_mb.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Price (KES) <span class="text-danger">*</span></label>
+          <div class="input-group">
+            <span class="input-group-text">KES</span>
+            <input type="number" name="price_kes" value="{{ form.price_kes.value|default:'' }}"
+                   class="form-control {% if form.price_kes.errors %}is-invalid{% endif %}"
+                   min="0" step="0.01" placeholder="20.00" required>
+            {% for e in form.price_kes.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+
+        <div class="mb-4 form-check">
+          <input type="checkbox" name="is_active" id="id_is_active" class="form-check-input"
+                 {% if form.is_active.value != False %}checked{% endif %}>
+          <label class="form-check-label" for="id_is_active">Active (visible on splash page)</label>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="bi bi-floppy me-1"></i>Save Plan
+          </button>
+          <a href="{% url 'portal:index' %}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

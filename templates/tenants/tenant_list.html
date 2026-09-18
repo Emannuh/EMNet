@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Tenants — NetSuite-ISP{% endblock %}
+{% block title %}Tenants — Emmsuite ISP{% endblock %}
 {% block page_title %}ISP Tenants{% endblock %}
 
 {% block content %}
@@ -27,7 +27,7 @@
     <div class="card border-0 shadow-sm">
       <div class="card-body">
         <div class="text-muted small">Inactive</div>
-        <div class="fs-3 fw-bold text-danger">{{ total|add:"-"|add:active }}</div>
+        <div class="fs-3 fw-bold text-danger">{{ inactive }}</div>
       </div>
     </div>
   </div>
