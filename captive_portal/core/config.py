@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     postgres_user: str = "netsuite"
     postgres_password: str
 
+    # RADIUS database (sync via psycopg2 — same DB host, different database)
+    radius_db_user: str = "radius"
+    radius_db_password: str = "devpassword"
+
     # Redis
     redis_url: str = "redis://redis:6379/0"
 
@@ -42,8 +46,9 @@ class Settings(BaseSettings):
 
     @property
     def async_database_url(self) -> str:
+        """Plain asyncpg DSN — NOT the SQLAlchemy +asyncpg variant."""
         return (
-            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+            f"postgresql://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 

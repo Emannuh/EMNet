@@ -78,3 +78,67 @@ class BandwidthSnapshot(models.Model):
 
     def __str__(self):
         return f"{self.device.name}/{self.interface} @ {self.timestamp:%H:%M:%S}"
+
+
+# ── Alert Rules ───────────────────────────────────────────────────────────────
+
+class AlertRule(models.Model):
+    """
+    Defines a condition that triggers an alert notification.
+    Evaluated by the Celery alert task after each SNMP poll cycle.
+    """
+
+    class Condition(models.TextChoices):
+        DEVICE_DOWN    = "device_down",    "Device Down"
+        DEVICE_UP      = "device_up",      "Device Up (recovery)"
+        HIGH_BANDWIDTH = "high_bandwidth", "High Bandwidth Usage"
+
+    name        = models.CharField(max_length=150)
+    condition   = models.CharField(max_length=20, choices=Condition.choices)
+    # Optional: scope to a specific device; if null applies to ALL devices
+    device      = models.ForeignKey(
+        Device, on_delete=models.CASCADE,
+        null=True, blank=True, related_name="alert_rules",
+    )
+    # Threshold only used for HIGH_BANDWIDTH (Mbps)
+    threshold_mbps = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="For high_bandwidth: alert when Mbps exceeds this value",
+    )
+    # Notification target
+    notify_email = models.EmailField(
+        help_text="Email address to notify when this rule fires",
+    )
+    # Cooldown: minimum minutes between repeated alerts for the same device+rule
+    cooldown_minutes = models.PositiveIntegerField(
+        default=30,
+        help_text="Minimum minutes between repeated alerts for the same device",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        scope = self.device.name if self.device else "all devices"
+        return f"{self.name} [{self.condition}] → {scope}"
+
+
+class AlertEvent(models.Model):
+    """
+    Records each time an AlertRule fired.
+    Used for de-duplication — if a recent AlertEvent exists within the
+    cooldown window, the rule does not fire again.
+    """
+    rule       = models.ForeignKey(AlertRule, on_delete=models.CASCADE, related_name="events")
+    device     = models.ForeignKey(Device, on_delete=models.CASCADE, related_name="alert_events")
+    message    = models.TextField()
+    fired_at   = models.DateTimeField(auto_now_add=True)
+    email_sent = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-fired_at"]
+
+    def __str__(self):
+        return f"{self.rule.name} @ {self.device.name} [{self.fired_at:%Y-%m-%d %H:%M}]"

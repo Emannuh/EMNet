@@ -23,7 +23,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - ./docker/postgres/init_radius_schema.sql:/docker-entrypoint-initdb.d/02_radius_schema.sql:ro
     ports:
       - "5432:5432"
     healthcheck:
@@ -141,8 +142,6 @@ services:
       dockerfile: Dockerfile
     container_name: netsuite_radius
     restart: unless-stopped
-    profiles:
-      - radius          # opt-in: docker compose --profile radius up
     environment:
       RADIUS_DB_HOST: db
       RADIUS_DB_PORT: ${RADIUS_DB_PORT:-5432}
@@ -155,6 +154,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "radtest", "healthcheck", "healthcheck", "127.0.0.1", "0", "testing123"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
 
   # ── Nginx reverse proxy ───────────────────────────────────────────────────
   # Port 80 is reserved on Windows — using 8080 instead

@@ -1,0 +1,40 @@
+sql {
+    dialect = "postgresql"
+    driver = "rlm_sql_${dialect}"
+
+    postgresql {
+        send_application_name = yes
+    }
+
+    # Connection string for the radius database
+    radius_db = "host=${RADIUS_DB_HOST} port=${RADIUS_DB_PORT} dbname=${RADIUS_DB_NAME} user=${RADIUS_DB_USER} password=${RADIUS_DB_PASSWORD}"
+
+    acct_table1         = "radacct"
+    acct_table2         = "radacct"
+    postauth_table      = "radpostauth"
+    authcheck_table     = "radcheck"
+    groupcheck_table    = "radgroupcheck"
+    authreply_table     = "radreply"
+    groupreply_table    = "radgroupreply"
+    usergroup_table     = "radusergroup"
+    read_groups         = yes
+    delete_stale_sessions = yes
+    group_attribute     = "SQL-Group"
+
+    # Load NAS entries from the nas table (ISPs register their routers via Django admin)
+    read_clients        = yes
+    client_table        = "nas"
+
+    pool {
+        start = 0
+        min = 1
+        max = 10
+        spare = 3
+        uses = 0
+        retry_delay = 30
+        lifetime = 0
+        idle_timeout = 60
+    }
+
+    $INCLUDE ${modconfdir}/${.:name}/main/${dialect}/queries.conf
+}

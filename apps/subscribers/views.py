@@ -425,6 +425,11 @@ class SubscriberSuspendView(LoginRequiredMixin, View):
                 suspend_subscriber(sub, reason=reason)
             except Exception as e:
                 logger.error("RADIUS suspend error: %s", e)
+                messages.warning(
+                    request,
+                    "Subscriber record suspended but RADIUS suspension failed. "
+                    "The subscriber may still have network access until RADIUS is updated.",
+                )
 
         subscriber.status = Subscriber.Status.SUSPENDED
         subscriber.save(update_fields=["status", "updated_at"])
@@ -436,12 +441,19 @@ class SubscriberSuspendView(LoginRequiredMixin, View):
 
 
 class SubscriberReactivateView(LoginRequiredMixin, View):
-    """Manually reactivate a suspended subscriber."""
+    """
+    Manually reactivate a suspended subscriber.
+    Uses select_for_update() to prevent the overdue-check task from
+    re-suspending between our status read and write.
+    """
 
+    @transaction.atomic
     def post(self, request, pk):
         subscriber = get_object_or_404(Subscriber, pk=pk)
-        sub = subscriber.subscriptions.filter(
-            status=Subscription.Status.SUSPENDED
+
+        sub = Subscription.objects.select_for_update().filter(
+            subscriber=subscriber,
+            status=Subscription.Status.SUSPENDED,
         ).first()
 
         if sub:
@@ -451,13 +463,21 @@ class SubscriberReactivateView(LoginRequiredMixin, View):
             sub.save(update_fields=[
                 "status", "suspended_at", "suspension_reason", "updated_at"
             ])
+
+        Subscriber.objects.filter(pk=pk).update(status=Subscriber.Status.ACTIVE)
+
+        # RADIUS outside transaction
+        if sub:
             try:
                 reactivate_subscriber(sub)
             except Exception as e:
                 logger.error("RADIUS reactivate error: %s", e)
+                messages.warning(
+                    request,
+                    "Subscriber record reactivated but RADIUS reactivation "
+                    "failed. Please check FreeRADIUS connectivity.",
+                )
 
-        subscriber.status = Subscriber.Status.ACTIVE
-        subscriber.save(update_fields=["status", "updated_at"])
         messages.success(
             request,
             f'"{subscriber.full_name}" has been reactivated.',
@@ -492,6 +512,11 @@ class SubscriberCancelView(LoginRequiredMixin, View):
                 deprovision_subscriber(sub)
             except Exception as e:
                 logger.error("RADIUS deprovision error: %s", e)
+                messages.warning(
+                    request,
+                    "Subscription cancelled but RADIUS deprovision failed. "
+                    "Credentials may still be active — check RADIUS manually.",
+                )
 
         subscriber.status = Subscriber.Status.CANCELLED
         subscriber.save(update_fields=["status", "updated_at"])
@@ -617,10 +642,23 @@ class InvoiceSendPaymentView(LoginRequiredMixin, View):
 
 
 class InvoiceMarkPaidView(LoginRequiredMixin, View):
-    """Manually mark an invoice as paid (for cash/bank transfer payments)."""
+    """
+    Manually mark an invoice as paid (cash/bank transfer).
+    Uses select_for_update() to prevent race with the overdue-check
+    Celery task suspending the subscriber after payment arrives.
+    """
 
+    @transaction.atomic
     def post(self, request, pk):
-        invoice = get_object_or_404(Invoice, pk=pk)
+        # Lock invoice + subscription + subscriber atomically
+        invoice = get_object_or_404(
+            Invoice.objects.select_for_update(), pk=pk
+        )
+
+        if invoice.status == Invoice.Status.PAID:
+            messages.info(request, "This invoice is already paid.")
+            return redirect("subscribers:invoice_detail", pk=pk)
+
         receipt = request.POST.get("receipt_number", "MANUAL").strip()
 
         invoice.status = Invoice.Status.PAID
@@ -634,25 +672,37 @@ class InvoiceMarkPaidView(LoginRequiredMixin, View):
             status=InvoicePayment.Status.COMPLETED,
         )
 
-        # Reactivate if suspended
-        sub = invoice.subscription
-        if sub.status == Subscription.Status.SUSPENDED:
+        # Lock subscription inside the same transaction
+        sub = Subscription.objects.select_for_update().get(
+            pk=invoice.subscription_id
+        )
+        was_suspended = sub.status == Subscription.Status.SUSPENDED
+
+        if was_suspended:
             sub.status = Subscription.Status.ACTIVE
             sub.suspended_at = None
             sub.suspension_reason = ""
             sub.save(update_fields=[
                 "status", "suspended_at", "suspension_reason", "updated_at"
             ])
-            subscriber = sub.subscriber
-            subscriber.status = Subscriber.Status.ACTIVE
-            subscriber.save(update_fields=["status", "updated_at"])
+            Subscriber.objects.filter(pk=sub.subscriber_id).update(
+                status=Subscriber.Status.ACTIVE
+            )
+
+        # End of atomic block — RADIUS call outside the transaction
+        if was_suspended:
             try:
                 reactivate_subscriber(sub)
             except Exception as e:
-                logger.error("RADIUS reactivate error on manual pay: %s", e)
+                logger.error(
+                    "RADIUS reactivate error on manual pay for %s: %s",
+                    sub.subscriber.pppoe_username, e,
+                )
+                messages.warning(
+                    request,
+                    "Invoice marked paid but RADIUS reactivation failed. "
+                    "Please reactivate manually from the subscriber page.",
+                )
 
-        messages.success(
-            request,
-            f"Invoice marked as paid. Receipt: {receipt}",
-        )
+        messages.success(request, f"Invoice marked as paid. Receipt: {receipt}")
         return redirect("subscribers:invoice_detail", pk=pk)

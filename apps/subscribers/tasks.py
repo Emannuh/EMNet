@@ -20,6 +20,7 @@ import logging
 from datetime import date, timedelta
 
 from celery import shared_task
+from django.db import transaction
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -191,16 +192,35 @@ def send_stk_push_for_invoice(self, schema_name: str, invoice_pk: int):
                 phone, invoice.amount_kes,
             )
 
-            # ── TODO (integration): replace with real MpesaService ────────
-            # from apps.billing.mpesa import MpesaService
-            # result = MpesaService.stk_push(
-            #     phone=phone,
-            #     amount=int(invoice.amount_kes),
-            #     account_ref=str(invoice.reference)[:12],
-            #     description=f"Internet bill {invoice.period_start}",
-            # )
-            # checkout_request_id = result["CheckoutRequestID"]
-            checkout_request_id = f"STUB-{invoice.reference}"
+            # ── Real M-Pesa STK Push ──────────────────────────────────────
+            try:
+                from apps.billing.mpesa import stk_push, MpesaNotConfigured, MpesaApiError
+                result = stk_push(
+                    phone=phone,
+                    amount=int(invoice.amount_kes),
+                    account_ref=str(invoice.reference)[:12].upper(),
+                    description=f"Internet {invoice.period_start}",
+                    callback_path="/payments/callback",
+                )
+                checkout_request_id = result["CheckoutRequestID"]
+                logger.info(
+                    "STK Push dispatched for invoice %s: checkout_id=%s",
+                    invoice.reference, checkout_request_id,
+                )
+            except MpesaNotConfigured as exc:
+                # Credentials not set — log clearly, don't crash the task
+                logger.error(
+                    "M-Pesa not configured for invoice %s: %s. "
+                    "Set MPESA_CONSUMER_KEY, MPESA_CONSUMER_SECRET, MPESA_PASSKEY in .env",
+                    invoice.reference, exc,
+                )
+                return
+            except MpesaApiError as exc:
+                logger.error(
+                    "Daraja API error for invoice %s: %s",
+                    invoice.reference, exc,
+                )
+                raise self.retry(exc=exc, countdown=120, max_retries=3)
             # ─────────────────────────────────────────────────────────────
 
             # Record the pending payment attempt
@@ -237,10 +257,16 @@ def process_invoice_payment_callback(
     """
     Called by the M-Pesa callback endpoint after Daraja posts the result.
     Marks the invoice paid and reactivates the subscriber if suspended.
+
+    Race condition protection: uses select_for_update() on Subscription
+    so that the overdue-check task and this callback cannot both read
+    stale status and diverge. The transaction covers the full
+    read-check-write cycle.
     """
     try:
         from django_tenants.utils import schema_context
         with schema_context(schema_name):
+            from django.db import transaction
             from .models import Invoice, InvoicePayment, Subscription, Subscriber
             from .radius_service import reactivate_subscriber
 
@@ -257,47 +283,74 @@ def process_invoice_payment_callback(
                 return
 
             invoice = payment.invoice
-            subscription = invoice.subscription
-            subscriber = subscription.subscriber
 
             if result_code == 0:
-                # Payment successful
-                payment.status = InvoicePayment.Status.COMPLETED
-                payment.mpesa_receipt_number = receipt_number
-                payment.save(update_fields=[
-                    "status", "mpesa_receipt_number", "updated_at"
-                ])
-
-                invoice.status = Invoice.Status.PAID
-                invoice.save(update_fields=["status", "updated_at"])
-
-                logger.info(
-                    "Invoice %s PAID — receipt %s subscriber %s",
-                    invoice.reference, receipt_number, subscriber.full_name,
-                )
-
-                # Reactivate if subscriber was suspended for non-payment
-                if subscription.status == Subscription.Status.SUSPENDED:
-                    subscription.status = Subscription.Status.ACTIVE
-                    subscription.suspended_at = None
-                    subscription.suspension_reason = ""
-                    subscription.save(update_fields=[
-                        "status", "suspended_at", "suspension_reason", "updated_at"
-                    ])
-                    subscriber.status = Subscriber.Status.ACTIVE
-                    subscriber.save(update_fields=["status", "updated_at"])
-                    reactivate_subscriber(subscription)
-                    logger.info(
-                        "Subscriber %s reactivated after payment", subscriber.full_name
+                with transaction.atomic():
+                    # Lock the subscription row for the duration of this block
+                    # so check_overdue_for_tenant cannot suspend between our
+                    # status read and our status write.
+                    subscription = Subscription.objects.select_for_update().get(
+                        pk=invoice.subscription_id
+                    )
+                    subscriber = Subscriber.objects.select_for_update().get(
+                        pk=subscription.subscriber_id
                     )
 
+                    # Re-fetch invoice inside the lock
+                    invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
+                    if invoice.status == Invoice.Status.PAID:
+                        # Already processed (duplicate callback) — idempotent exit
+                        logger.info(
+                            "Invoice %s already PAID — duplicate callback ignored",
+                            invoice.reference,
+                        )
+                        return
+
+                    payment.status = InvoicePayment.Status.COMPLETED
+                    payment.mpesa_receipt_number = receipt_number
+                    payment.save(update_fields=["status", "mpesa_receipt_number", "updated_at"])
+
+                    invoice.status = Invoice.Status.PAID
+                    invoice.save(update_fields=["status", "updated_at"])
+
+                    logger.info(
+                        "Invoice %s PAID — receipt %s subscriber %s",
+                        invoice.reference, receipt_number, subscriber.full_name,
+                    )
+
+                    was_suspended = subscription.status == Subscription.Status.SUSPENDED
+
+                    if was_suspended:
+                        subscription.status = Subscription.Status.ACTIVE
+                        subscription.suspended_at = None
+                        subscription.suspension_reason = ""
+                        subscription.save(update_fields=[
+                            "status", "suspended_at", "suspension_reason", "updated_at"
+                        ])
+                        subscriber.status = Subscriber.Status.ACTIVE
+                        subscriber.save(update_fields=["status", "updated_at"])
+
+                # RADIUS call outside the DB transaction (external I/O)
+                if was_suspended:
+                    try:
+                        reactivate_subscriber(subscription)
+                        logger.info(
+                            "Subscriber %s reactivated after payment", subscriber.full_name
+                        )
+                    except Exception as radius_exc:
+                        # RADIUS failure after DB commit: log and alert but don't
+                        # roll back the payment — operator must manually re-provision.
+                        logger.error(
+                            "RADIUS reactivation failed for %s after payment. "
+                            "Manual re-provision required. Error: %s",
+                            subscriber.pppoe_username, radius_exc,
+                        )
+
             else:
-                # Payment failed
+                # Payment failed — no locking needed, just record failure
                 payment.status = InvoicePayment.Status.FAILED
                 payment.failure_reason = failure_reason
-                payment.save(update_fields=[
-                    "status", "failure_reason", "updated_at"
-                ])
+                payment.save(update_fields=["status", "failure_reason", "updated_at"])
                 logger.warning(
                     "Invoice %s payment FAILED — reason: %s",
                     invoice.reference, failure_reason,
@@ -411,6 +464,10 @@ def check_overdue_for_tenant(self, schema_name: str):
                 )
 
             # ── Step 2: Auto-suspend past grace period ───────────────────
+            # select_for_update() prevents the payment callback task from
+            # reading a stale ACTIVE status while we are in the process of
+            # suspending. Both tasks lock the Subscription row; whichever
+            # acquires the lock first wins, the other sees the updated status.
             overdue_invoices = Invoice.objects.filter(
                 status=Invoice.Status.OVERDUE,
                 subscription__status=Subscription.Status.ACTIVE,
@@ -425,20 +482,43 @@ def check_overdue_for_tenant(self, schema_name: str):
                     days=sub.plan.grace_days
                 )
                 if today > grace_deadline:
-                    # Suspend
-                    sub.status = Subscription.Status.SUSPENDED
-                    sub.suspended_at = timezone.now()
-                    sub.suspension_reason = "Non-payment"
-                    sub.save(update_fields=[
-                        "status", "suspended_at", "suspension_reason", "updated_at"
-                    ])
+                    with transaction.atomic():
+                        # Re-read inside a lock — bail if already suspended
+                        # (payment callback may have beaten us)
+                        locked_sub = Subscription.objects.select_for_update().get(
+                            pk=sub.pk
+                        )
+                        if locked_sub.status != Subscription.Status.ACTIVE:
+                            logger.info(
+                                "Skipping suspend for %s — status already %s",
+                                sub.subscriber.full_name, locked_sub.status,
+                            )
+                            continue
 
-                    subscriber = sub.subscriber
-                    subscriber.status = Subscriber.Status.SUSPENDED
-                    subscriber.save(update_fields=["status", "updated_at"])
+                        # Also check invoice inside lock — if it got paid, skip
+                        locked_inv = Invoice.objects.select_for_update().get(pk=invoice.pk)
+                        if locked_inv.status == Invoice.Status.PAID:
+                            logger.info(
+                                "Skipping suspend for %s — invoice paid",
+                                sub.subscriber.full_name,
+                            )
+                            continue
 
+                        locked_sub.status = Subscription.Status.SUSPENDED
+                        locked_sub.suspended_at = timezone.now()
+                        locked_sub.suspension_reason = "Non-payment"
+                        locked_sub.save(update_fields=[
+                            "status", "suspended_at", "suspension_reason", "updated_at"
+                        ])
+
+                        subscriber = locked_sub.subscriber
+                        Subscriber.objects.filter(pk=subscriber.pk).update(
+                            status=Subscriber.Status.SUSPENDED
+                        )
+
+                    # RADIUS call outside the transaction
                     try:
-                        suspend_subscriber(sub, reason="non-payment")
+                        suspend_subscriber(locked_sub, reason="non-payment")
                         logger.info(
                             "Auto-suspended %s (invoice %s overdue by %d days)",
                             subscriber.full_name,

@@ -56,7 +56,8 @@ def poll_all_tenants(self):
 @shared_task(bind=True, name="network.poll_tenant_devices", ignore_result=True)
 def poll_tenant_devices(self, schema_name: str):
     """
-    Switch to the tenant schema and poll every active device.
+    Switch to the tenant schema, poll every active device,
+    then run alert evaluation against the updated device states.
     """
     try:
         from django_tenants.utils import schema_context
@@ -70,11 +71,47 @@ def poll_tenant_devices(self, schema_name: str):
             for device in devices:
                 poll_single_device.delay(schema_name, device.pk)
 
+        # Evaluate alert rules after polling — runs after the device subtasks
+        # are dispatched. For low device counts this is fine; for large fleets
+        # a separate Beat task (evaluate_alerts_for_all_tenants) handles it.
+        evaluate_alerts_for_tenant.apply_async(
+            args=[schema_name],
+            countdown=30,  # wait 30s for poll_single_device tasks to complete
+        )
+
     except Exception as exc:
         logger.exception(
             "poll_tenant_devices failed for '%s': %s", schema_name, exc
         )
         raise self.retry(exc=exc, countdown=30, max_retries=3)
+
+
+@shared_task(bind=True, name="network.evaluate_alerts_for_all_tenants", ignore_result=True)
+def evaluate_alerts_for_all_tenants(self):
+    """Beat-scheduled entry point for alert evaluation across all tenants."""
+    try:
+        from django_tenants.utils import get_tenant_model
+        TenantModel = get_tenant_model()
+        for tenant in TenantModel.objects.filter(is_active=True).exclude(schema_name="public"):
+            evaluate_alerts_for_tenant.delay(tenant.schema_name)
+    except Exception as exc:
+        logger.exception("evaluate_alerts_for_all_tenants failed: %s", exc)
+        raise self.retry(exc=exc, countdown=60, max_retries=2)
+
+
+@shared_task(bind=True, name="network.evaluate_alerts_for_tenant", ignore_result=True)
+def evaluate_alerts_for_tenant(self, schema_name: str):
+    """Evaluate all active AlertRules for a single tenant schema."""
+    try:
+        from django_tenants.utils import schema_context
+        from .alerts import evaluate_alerts
+        with schema_context(schema_name):
+            fired = evaluate_alerts(schema_name)
+            if fired:
+                logger.info("Alert evaluation for '%s': %d alert(s) fired", schema_name, fired)
+    except Exception as exc:
+        logger.exception("evaluate_alerts_for_tenant failed for '%s': %s", schema_name, exc)
+        raise self.retry(exc=exc, countdown=30, max_retries=2)
 
 
 # ── Single-device poller ──────────────────────────────────────────────────────
@@ -104,15 +141,8 @@ def poll_single_device(self, schema_name: str, device_pk: int):
             now = dj_timezone.now()
 
             # ── SNMP GET ─────────────────────────────────────────────────────
-            # TODO (integration): replace stub with real pysnmp call.
-            # Expected return value:
-            #   snmp_result = {
-            #       "reachable": bool,
-            #       "interface": str,        # e.g. "eth0"
-            #       "bytes_in": int,         # ifInOctets
-            #       "bytes_out": int,        # ifOutOctets
-            #   }
-            snmp_result = _snmp_get_stub(device)
+            from .snmp import snmp_poll_device
+            snmp_result = snmp_poll_device(device)
             # ─────────────────────────────────────────────────────────────────
 
             if snmp_result["reachable"]:
@@ -153,31 +183,3 @@ def poll_single_device(self, schema_name: str, device_pk: int):
         raise self.retry(exc=exc, countdown=30, max_retries=2)
 
 
-# ── SNMP stub (replace with real pysnmp in integration pass) ─────────────────
-
-def _snmp_get_stub(device) -> dict:
-    """
-    Placeholder SNMP GET.
-    Returns a fake reachable=True result so the task pipeline can be
-    tested end-to-end without real devices.
-
-    Replace this function body with a real pysnmp GET when integrating:
-
-        from pysnmp.hlapi import (
-            getCmd, SnmpEngine, CommunityData, UdpTransportTarget,
-            ContextData, ObjectType, ObjectIdentity,
-        )
-        # OID 1.3.6.1.2.1.2.2.1.10.1 = ifInOctets for interface index 1
-        # OID 1.3.6.1.2.1.2.2.1.16.1 = ifOutOctets for interface index 1
-        ...
-    """
-    logger.debug(
-        "SNMP stub: pretending device '%s' (%s) is reachable",
-        device.name, device.ip_address,
-    )
-    return {
-        "reachable": True,
-        "interface": "eth0",
-        "bytes_in": 0,
-        "bytes_out": 0,
-    }
