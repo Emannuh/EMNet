@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Device, UptimeEvent, BandwidthSnapshot
+from .models import Device, UptimeEvent, BandwidthSnapshot, AlertRule, AlertEvent
 
 
 @admin.register(Device)
@@ -20,3 +20,18 @@ class UptimeEventAdmin(admin.ModelAdmin):
 class BandwidthSnapshotAdmin(admin.ModelAdmin):
     list_display = ["device", "interface", "bytes_in", "bytes_out", "timestamp"]
     readonly_fields = ["timestamp"]
+
+
+@admin.register(AlertRule)
+class AlertRuleAdmin(admin.ModelAdmin):
+    list_display = ["name", "condition", "device", "notify_email",
+                    "cooldown_minutes", "is_active"]
+    list_filter = ["condition", "is_active"]
+    search_fields = ["name", "notify_email"]
+
+
+@admin.register(AlertEvent)
+class AlertEventAdmin(admin.ModelAdmin):
+    list_display = ["rule", "device", "fired_at", "email_sent"]
+    list_filter = ["email_sent", "rule"]
+    readonly_fields = ["fired_at"]

@@ -74,6 +74,7 @@ def _get_token() -> str:
         )
         resp.raise_for_status()
         data = resp.json()
+        logger.error("OAuth response: %s", data)
         token = data["access_token"]
         import time as _time
         _cached_token["token"] = token
@@ -132,8 +133,9 @@ def stk_push(
         raise MpesaApiError(f"STK Push request failed: {exc}") from exc
 
     if data.get("ResponseCode") != "0":
+        logger.error("STK Push raw response: %s", data)
         raise MpesaApiError(
-            f"Daraja rejected STK Push: {data.get('ResponseDescription')}",
+            f"Daraja rejected STK Push: {data.get('ResponseDescription')} | errorMessage: {data.get('errorMessage')} | full: {data}",
             body=data,
         )
 
