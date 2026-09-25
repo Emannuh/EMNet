@@ -18,6 +18,7 @@ urlpatterns = [
     path("portal-admin/", include("apps.portal.urls")),
     path("billing/", include("apps.billing.urls")),
     path("subscribers/", include("apps.subscribers.urls")),
+    path("radius/", include("apps.radius.urls")),
 ]
 
 if settings.DEBUG:

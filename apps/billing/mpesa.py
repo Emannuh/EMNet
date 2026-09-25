@@ -85,12 +85,21 @@ def _get_token() -> str:
     """
     Fetch an OAuth bearer token from Daraja, cached in Redis.
     Refreshes automatically before expiry.
+    Falls back to a fresh token fetch if Redis is unavailable
+    (e.g. running management commands outside Docker).
     """
     _require_credentials()
 
-    cached = cache.get(CACHE_KEY)
-    if cached:
-        return cached
+    # Try Redis cache — gracefully skip if Redis is unreachable
+    try:
+        cached = cache.get(CACHE_KEY)
+        if cached:
+            return cached
+    except Exception as cache_exc:
+        logger.warning(
+            "Redis cache unavailable (%s) — fetching fresh M-Pesa token without caching",
+            cache_exc,
+        )
 
     url = f"{_base_url()}/oauth/v1/generate?grant_type=client_credentials"
     key    = settings.MPESA_CONSUMER_KEY
@@ -106,7 +115,11 @@ def _get_token() -> str:
         resp.raise_for_status()
         data = resp.json()
         token = data["access_token"]
-        cache.set(CACHE_KEY, token, timeout=TOKEN_TTL)
+        # Try to store in cache — ignore errors if Redis is down
+        try:
+            cache.set(CACHE_KEY, token, timeout=TOKEN_TTL)
+        except Exception:
+            pass
         logger.debug("M-Pesa OAuth token acquired (env=%s)", settings.MPESA_ENVIRONMENT)
         return token
     except requests.exceptions.RequestException as exc:

@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}RADIUS NAS — {% if request.tenant.schema_name != 'public' %}{{ request.tenant.name }}{% else %}Emmsuite ISP{% endif %}{% endblock %}
+{% block page_title %}RADIUS NAS Devices{% endblock %}
+
+{% block content %}
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-sm-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body py-3">
+        <div class="text-muted small">Total NAS</div>
+        <div class="fs-3 fw-bold">{{ total }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toolbar -->
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <form method="get" class="d-flex gap-2 flex-wrap">
+    <input type="search" name="q" value="{{ q }}"
+           class="form-control form-control-sm" style="max-width:260px;"
+           placeholder="Search IP or shortname…">
+    <button type="submit" class="btn btn-sm btn-outline-secondary">Filter</button>
+    {% if q %}
+      <a href="{% url 'radius:index' %}" class="btn btn-sm btn-outline-danger">Clear</a>
+    {% endif %}
+  </form>
+  <a href="{% url 'radius:nas_add' %}" class="btn btn-sm btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Add NAS
+  </a>
+</div>
+
+<!-- Table -->
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>IP / Hostname</th>
+          <th>Short Name</th>
+          <th>Type</th>
+          <th>Ports</th>
+          <th>Community</th>
+          <th>Description</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for nas in nas_devices %}
+        <tr>
+          <td><code>{{ nas.nasname }}</code></td>
+          <td>{{ nas.shortname|default:"—" }}</td>
+          <td>
+            <span class="badge bg-secondary-subtle text-secondary">{{ nas.type }}</span>
+          </td>
+          <td class="text-muted small">{{ nas.ports|default:"—" }}</td>
+          <td class="text-muted small">{{ nas.community|default:"—" }}</td>
+          <td class="text-muted small">{{ nas.description|default:"—"|truncatechars:40 }}</td>
+          <td class="text-end">
+            <a href="{% url 'radius:nas_edit' nas.pk %}"
+               class="btn btn-sm btn-outline-secondary me-1">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <a href="{% url 'radius:nas_delete' nas.pk %}"
+               class="btn btn-sm btn-outline-danger">
+              <i class="bi bi-trash"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-5">
+            <i class="bi bi-router fs-2 d-block mb-2 opacity-25"></i>
+            No NAS devices registered yet.
+            <a href="{% url 'radius:nas_add' %}">Add your first NAS</a>.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if is_paginated %}
+<nav class="mt-3">
+  <ul class="pagination pagination-sm justify-content-end">
+    {% if page_obj.has_previous %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ q }}">‹</a>
+    </li>
+    {% endif %}
+    <li class="page-item disabled">
+      <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    </li>
+    {% if page_obj.has_next %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ q }}">›</a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+
+{% endblock %}

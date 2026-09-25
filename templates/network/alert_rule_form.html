@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}{% if form.instance.pk %}Edit Alert Rule{% else %}Add Alert Rule{% endif %} — Emmsuite ISP{% endblock %}
+{% block page_title %}{% if form.instance.pk %}Edit Alert Rule{% else %}Add Alert Rule{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <a href="{% url 'network:alert_rules' %}" class="btn btn-sm btn-outline-secondary mb-3">
+      <i class="bi bi-arrow-left me-1"></i>Back to Alert Rules
+    </a>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-bottom py-3">
+        <h5 class="mb-0">
+          <i class="bi bi-bell me-2 text-warning"></i>
+          {% if form.instance.pk %}Edit{% else %}New{% endif %} Alert Rule
+        </h5>
+        <p class="text-muted small mb-0 mt-1">
+          Rules are evaluated after every SNMP poll cycle (~5 minutes).
+        </p>
+      </div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+
+          <!-- Name -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="id_name">
+              Rule Name <span class="text-danger">*</span>
+            </label>
+            <input type="text" id="id_name" name="name"
+                   class="form-control {% if form.name.errors %}is-invalid{% endif %}"
+                   value="{{ form.name.value|default:'' }}" required>
+            {% for e in form.name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+
+          <!-- Condition -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="id_condition">
+              Condition <span class="text-danger">*</span>
+            </label>
+            <select id="id_condition" name="condition"
+                    class="form-select {% if form.condition.errors %}is-invalid{% endif %}"
+                    required onchange="toggleThreshold(this.value)">
+              <option value="">— Select condition —</option>
+              {% for val, label in form.fields.condition.choices %}
+                <option value="{{ val }}"
+                  {% if form.condition.value == val %}selected{% endif %}>
+                  {{ label }}
+                </option>
+              {% endfor %}
+            </select>
+            {% for e in form.condition.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+
+          <!-- Device scope -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="id_device">Device Scope</label>
+            <select id="id_device" name="device"
+                    class="form-select {% if form.device.errors %}is-invalid{% endif %}">
+              <option value="">All devices</option>
+              {% for val, label in form.fields.device.choices %}
+                {% if val %}
+                  <option value="{{ val }}"
+                    {% if form.device.value|stringformat:"s" == val|stringformat:"s" %}selected{% endif %}>
+                    {{ label }}
+                  </option>
+                {% endif %}
+              {% endfor %}
+            </select>
+            <div class="form-text">Leave blank to apply to all monitored devices.</div>
+            {% for e in form.device.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+
+          <!-- Threshold (shown only for high_bandwidth) -->
+          <div class="mb-3" id="threshold_row"
+               style="{% if form.condition.value != 'high_bandwidth' %}display:none{% endif %}">
+            <label class="form-label fw-semibold" for="id_threshold_mbps">
+              Threshold (Mbps)
+            </label>
+            <div class="input-group">
+              <input type="number" id="id_threshold_mbps" name="threshold_mbps"
+                     class="form-control {% if form.threshold_mbps.errors %}is-invalid{% endif %}"
+                     value="{{ form.threshold_mbps.value|default:'' }}" min="1">
+              <span class="input-group-text">Mbps</span>
+            </div>
+            <div class="form-text">Alert fires when device exceeds this bandwidth.</div>
+            {% for e in form.threshold_mbps.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+
+          <!-- Notify email -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="id_notify_email">
+              Notify Email <span class="text-danger">*</span>
+            </label>
+            <input type="email" id="id_notify_email" name="notify_email"
+                   class="form-control {% if form.notify_email.errors %}is-invalid{% endif %}"
+                   value="{{ form.notify_email.value|default:'' }}" required>
+            {% for e in form.notify_email.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+
+          <!-- Cooldown -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="id_cooldown_minutes">
+              Cooldown (minutes)
+            </label>
+            <input type="number" id="id_cooldown_minutes" name="cooldown_minutes"
+                   class="form-control {% if form.cooldown_minutes.errors %}is-invalid{% endif %}"
+                   value="{{ form.cooldown_minutes.value|default:'30' }}" min="1">
+            <div class="form-text">Minimum time between repeated alerts for the same device.</div>
+            {% for e in form.cooldown_minutes.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+          </div>
+
+          <!-- Active -->
+          <div class="mb-4 form-check form-switch">
+            <input type="checkbox" id="id_is_active" name="is_active"
+                   class="form-check-input" role="switch"
+                   {% if form.is_active.value %}checked{% endif %}>
+            <label class="form-check-label fw-semibold" for="id_is_active">
+              Rule is active
+            </label>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-lg me-1"></i>
+              {% if form.instance.pk %}Save Changes{% else %}Create Rule{% endif %}
+            </button>
+            <a href="{% url 'network:alert_rules' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleThreshold(condition) {
+  const row = document.getElementById('threshold_row');
+  row.style.display = condition === 'high_bandwidth' ? '' : 'none';
+}
+// Run on page load for edit mode
+document.addEventListener('DOMContentLoaded', function() {
+  const sel = document.getElementById('id_condition');
+  if (sel) toggleThreshold(sel.value);
+});
+</script>
+{% endblock %}

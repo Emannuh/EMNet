@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Send STK Push — {% if request.tenant.schema_name != 'public' %}{{ request.tenant.name }}{% else %}Emmsuite ISP{% endif %}{% endblock %}
+{% block page_title %}Send M-Pesa STK Push{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-7 col-lg-5">
+
+    <!-- Back link -->
+    <a href="{% url 'billing:index' %}" class="btn btn-sm btn-outline-secondary mb-3">
+      <i class="bi bi-arrow-left me-1"></i>Back to Payments
+    </a>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-bottom py-3">
+        <h5 class="mb-0 d-flex align-items-center gap-2">
+          <i class="bi bi-phone text-success"></i>
+          Send M-Pesa STK Push
+        </h5>
+        <p class="text-muted small mb-0 mt-1">
+          Manually trigger a payment prompt on a customer's phone.
+          The customer will receive a PIN request from M-Pesa.
+        </p>
+      </div>
+
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+
+          <!-- Phone number -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="id_phone">
+              Phone Number <span class="text-danger">*</span>
+            </label>
+            <div class="input-group">
+              <span class="input-group-text text-muted">
+                <i class="bi bi-phone"></i>
+              </span>
+              <input
+                type="tel"
+                id="id_phone"
+                name="phone_number"
+                class="form-control {% if errors.phone_number %}is-invalid{% endif %}"
+                placeholder="2547XXXXXXXX"
+                value="{{ form_data.phone_number|default:'' }}"
+                maxlength="12"
+                required
+                autocomplete="tel"
+              >
+              {% if errors.phone_number %}
+                <div class="invalid-feedback">{{ errors.phone_number }}</div>
+              {% endif %}
+            </div>
+            <div class="form-text">Format: 2547XXXXXXXX or 2541XXXXXXXX (12 digits)</div>
+          </div>
+
+          <!-- Amount -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="id_amount">
+              Amount (KES) <span class="text-danger">*</span>
+            </label>
+            <div class="input-group">
+              <span class="input-group-text text-muted">KES</span>
+              <input
+                type="number"
+                id="id_amount"
+                name="amount"
+                class="form-control {% if errors.amount %}is-invalid{% endif %}"
+                placeholder="e.g. 500"
+                value="{{ form_data.amount|default:'' }}"
+                min="1"
+                step="1"
+                required
+              >
+              {% if errors.amount %}
+                <div class="invalid-feedback">{{ errors.amount }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="mb-4">
+            <label class="form-label fw-semibold" for="id_description">
+              Description
+            </label>
+            <input
+              type="text"
+              id="id_description"
+              name="description"
+              class="form-control"
+              placeholder="e.g. Internet payment"
+              value="{{ form_data.description|default:'Internet payment' }}"
+              maxlength="13"
+            >
+            <div class="form-text">Shown to customer on M-Pesa prompt (max 13 chars)</div>
+          </div>
+
+          <!-- Submit -->
+          <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-success btn-lg">
+              <i class="bi bi-send me-2"></i>Send STK Push
+            </button>
+            <a href="{% url 'billing:index' %}" class="btn btn-outline-secondary">
+              Cancel
+            </a>
+          </div>
+        </form>
+      </div><!-- /card-body -->
+    </div><!-- /card -->
+
+    <!-- Info box -->
+    <div class="alert alert-info d-flex gap-2 mt-3 small" role="alert">
+      <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
+      <div>
+        <strong>How it works:</strong> The customer receives an M-Pesa PIN prompt
+        on their phone. Once they approve it, Safaricom sends the result back to
+        this system automatically. The payment will appear in the list as
+        <em>Pending</em> until confirmed.
+        <br>
+        <span class="text-muted mt-1 d-block">
+          Environment:
+          <strong>{{ mpesa_env|default:"sandbox" }}</strong>
+          &nbsp;·&nbsp;
+          Shortcode: <code>{{ mpesa_shortcode|default:"174379" }}</code>
+        </span>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

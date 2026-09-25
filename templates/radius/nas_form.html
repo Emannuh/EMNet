@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{% if form.instance.pk %}Edit NAS{% else %}Add NAS{% endif %} — Emmsuite ISP{% endblock %}
+{% block page_title %}{% if form.instance.pk %}Edit NAS Device{% else %}Add NAS Device{% endif %}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <a href="{% url 'radius:index' %}" class="btn btn-sm btn-outline-secondary mb-3">
+      <i class="bi bi-arrow-left me-1"></i>Back to NAS List
+    </a>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-bottom py-3">
+        <h5 class="mb-0">
+          <i class="bi bi-router me-2 text-primary"></i>
+          {% if form.instance.pk %}Edit{% else %}Add{% endif %} NAS Device
+        </h5>
+      </div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+
+          {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="{{ field.id_for_label }}">
+              {{ field.label }}
+              {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+            </label>
+            <input
+              type="{% if field.name == 'secret' %}password{% else %}text{% endif %}"
+              id="{{ field.id_for_label }}"
+              name="{{ field.html_name }}"
+              class="form-control {% if field.errors %}is-invalid{% endif %}"
+              value="{{ field.value|default:'' }}"
+              {% if field.field.required %}required{% endif %}
+              {% if field.name == 'ports' %}type="number" min="1"{% endif %}
+            >
+            {% for error in field.errors %}
+              <div class="invalid-feedback">{{ error }}</div>
+            {% endfor %}
+            {% if field.help_text %}
+              <div class="form-text">{{ field.help_text }}</div>
+            {% endif %}
+          </div>
+          {% endfor %}
+
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-lg me-1"></i>
+              {% if form.instance.pk %}Save Changes{% else %}Add NAS{% endif %}
+            </button>
+            <a href="{% url 'radius:index' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

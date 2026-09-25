@@ -85,6 +85,12 @@
           <i class="bi bi-person-lines-fill me-2"></i>Subscribers
         </a>
       </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.resolver_match.app_name == 'radius' %}active{% endif %}"
+           href="{% url 'radius:index' %}">
+          <i class="bi bi-router me-2"></i>RADIUS
+        </a>
+      </li>
       {% else %}
       <li class="nav-item mt-3">
         <span class="px-3 text-muted" style="font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;">

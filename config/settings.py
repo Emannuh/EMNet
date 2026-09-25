@@ -189,6 +189,20 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(hour=9, minute=0),
         "options": {"queue": "default"},
     },
+
+    # ── Billing: poll stuck pending voucher payments every 2 minutes ──────
+    "billing-poll-pending-payments": {
+        "task": "billing.poll_pending_payments",
+        "schedule": crontab(minute="*/2"),
+        "options": {"queue": "default"},
+    },
+
+    # ── Billing: poll stuck pending invoice payments every 2 minutes ──────
+    "billing-poll-pending-invoice-payments": {
+        "task": "billing.poll_pending_invoice_payments",
+        "schedule": crontab(minute="*/2"),
+        "options": {"queue": "default"},
+    },
 }
 
 # ── Auth ──────────────────────────────────────────────────────────────────────

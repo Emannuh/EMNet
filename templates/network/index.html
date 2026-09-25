@@ -60,6 +60,9 @@
   <a href="{% url 'network:device_add' %}" class="btn btn-sm btn-primary">
     <i class="bi bi-plus-lg me-1"></i>Add Device
   </a>
+  <a href="{% url 'network:alert_rules' %}" class="btn btn-sm btn-outline-warning">
+    <i class="bi bi-bell me-1"></i>Alert Rules
+  </a>
 </div>
 
 <!-- ── Device table ───────────────────────────────────────────────────────── -->
@@ -111,6 +114,10 @@
             {{ device.last_seen|date:"d M Y H:i"|default:"Never" }}
           </td>
           <td class="text-end">
+            <a href="{% url 'network:device_bandwidth' device.pk %}"
+               class="btn btn-sm btn-outline-primary me-1" title="Bandwidth chart">
+              <i class="bi bi-graph-up"></i>
+            </a>
             <a href="{% url 'network:device_edit' device.pk %}"
                class="btn btn-sm btn-outline-secondary me-1">
               <i class="bi bi-pencil"></i>

@@ -41,7 +41,7 @@
 </div>
 
 <!-- ── Filters ────────────────────────────────────────────────────────────── -->
-<div class="d-flex flex-wrap gap-2 mb-3">
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
   <form method="get" class="d-flex gap-2 flex-wrap">
     <input type="search" name="q" value="{{ q }}"
            class="form-control form-control-sm" style="max-width:240px;"
@@ -57,6 +57,9 @@
       <a href="{% url 'billing:index' %}" class="btn btn-sm btn-outline-danger">Clear</a>
     {% endif %}
   </form>
+  <a href="{% url 'billing:stk_push' %}" class="btn btn-sm btn-success">
+    <i class="bi bi-phone me-1"></i>Send STK Push
+  </a>
 </div>
 
 <!-- ── Payments table ─────────────────────────────────────────────────────── -->

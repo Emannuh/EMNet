@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Bandwidth — {{ device.name }} — Emmsuite ISP{% endblock %}
+{% block page_title %}{{ device.name }} — Bandwidth{% endblock %}
+
+{% block extra_css %}
+<style>
+  .chart-container { position: relative; height: 320px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Back + range selector -->
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+  <a href="{% url 'network:index' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Back to Devices
+  </a>
+  <div class="btn-group btn-group-sm" role="group" aria-label="Time range">
+    {% for val, label in ranges %}
+    <a href="?range={{ val }}"
+       class="btn {% if selected_range == val %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+      {{ label }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Device info card -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body py-3 d-flex gap-4 flex-wrap">
+    <div>
+      <div class="text-muted small">IP Address</div>
+      <div class="fw-semibold"><code>{{ device.ip_address }}</code></div>
+    </div>
+    <div>
+      <div class="text-muted small">Type</div>
+      <div class="fw-semibold">{{ device.get_device_type_display }}</div>
+    </div>
+    <div>
+      <div class="text-muted small">Status</div>
+      <div>
+        {% if device.status == "up" %}
+          <span class="badge bg-success-subtle text-success">Up</span>
+        {% elif device.status == "down" %}
+          <span class="badge bg-danger-subtle text-danger">Down</span>
+        {% else %}
+          <span class="badge bg-secondary-subtle text-secondary">Unknown</span>
+        {% endif %}
+      </div>
+    </div>
+    <div>
+      <div class="text-muted small">Last Seen</div>
+      <div class="fw-semibold text-muted small">
+        {{ device.last_seen|date:"d M Y H:i"|default:"Never" }}
+      </div>
+    </div>
+    <div>
+      <div class="text-muted small">Location</div>
+      <div class="fw-semibold">{{ device.location|default:"—" }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white border-bottom d-flex align-items-center justify-content-between py-3">
+    <h6 class="mb-0"><i class="bi bi-graph-up me-2 text-primary"></i>Throughput (Mbps)</h6>
+    <span id="snapshot-count" class="badge bg-secondary-subtle text-secondary small"></span>
+  </div>
+  <div class="card-body">
+    <div class="chart-container">
+      <canvas id="bandwidthChart"></canvas>
+    </div>
+    <div id="no-data-msg" class="text-center text-muted py-4" style="display:none;">
+      <i class="bi bi-graph-up fs-2 d-block mb-2 opacity-25"></i>
+      No bandwidth data collected for this time range yet.<br>
+      <span class="small">SNMP polls run every 5 minutes.</span>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+const dataUrl = "{% url 'network:bandwidth_data' device.pk %}?range={{ selected_range }}";
+
+async function loadChart() {
+  const resp = await fetch(dataUrl);
+  const data = await resp.json();
+
+  document.getElementById('snapshot-count').textContent =
+    data.snapshot_count + ' data points';
+
+  if (data.snapshot_count === 0) {
+    document.getElementById('bandwidthChart').style.display = 'none';
+    document.getElementById('no-data-msg').style.display = '';
+    return;
+  }
+
+  const ctx = document.getElementById('bandwidthChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.labels,
+      datasets: [
+        {
+          label: 'Download (Mbps)',
+          data: data.mbps_in,
+          borderColor: '#0d6efd',
+          backgroundColor: 'rgba(13,110,253,0.08)',
+          borderWidth: 2,
+          pointRadius: data.labels.length > 60 ? 0 : 2,
+          fill: true,
+          tension: 0.3,
+        },
+        {
+          label: 'Upload (Mbps)',
+          data: data.mbps_out,
+          borderColor: '#198754',
+          backgroundColor: 'rgba(25,135,84,0.08)',
+          borderWidth: 2,
+          pointRadius: data.labels.length > 60 ? 0 : 2,
+          fill: true,
+          tension: 0.3,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { position: 'top' },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(3)} Mbps`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            maxTicksLimit: 12,
+            maxRotation: 0,
+          }
+        },
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: 'Mbps' }
+        }
+      }
+    }
+  });
+}
+
+loadChart();
+</script>
+{% endblock %}
